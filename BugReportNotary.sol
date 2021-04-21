@@ -1,8 +1,8 @@
 pragma solidity >=0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 contract BugReportNotary is Initializable {
 
@@ -69,7 +69,7 @@ contract BugReportNotary is Initializable {
     reports[reportID].status = newStatus;
   }
 
-  function disclose(uint256 reportID, bytes report) external onlyOperator {
+  function disclose(uint256 reportID, bytes calldata report) external onlyOperator {
     require(keccak256(report) == reports[lastReportID].contentHash);
     reports[lastReportID].disclosed = true;
     emit ReportDisclosed(reportID, report);
@@ -77,15 +77,15 @@ contract BugReportNotary is Initializable {
 
   // PAYMENT FUNCTIONS
 
-  function updateReportAndPay(uint256 reportID, Status newStatus, address paymentToken, uint256 amount) onlyOperator {
+  function updateReportAndPay(uint256 reportID, Status newStatus, address paymentToken, uint256 amount) public onlyOperator {
     updateReport(reportID, newStatus);
     _payReporter(reportID, paymentToken, amount);
   }
 
   // allows projects to pay bug hunters without going through us
   function depositAndPayReporter(uint256 reportID, address paymentToken, uint256 amount) public {
-    IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-    _payReporter(reportID, token, amount);
+    IERC20(paymentToken).safeTransferFrom(msg.sender, address(this), amount);
+    _payReporter(reportID, paymentToken, amount);
   }
 
   function getBalance(address user, address token) public view returns (uint256){
@@ -105,17 +105,17 @@ contract BugReportNotary is Initializable {
   }
 
   function _payReporter(uint256 reportID, address token, uint256 amount) internal {
-    bytes balanceID = keccak256(abi.encodePacked(reports[reportID].reporter, token));
+    bytes32 balanceID = keccak256(abi.encodePacked(reports[reportID].reporter, token));
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance + amount);
     emit PaymentMade(reportID, token, amount);
   }
 
   function withdraw(address token, uint amount) public {
-    bytes balanceID = keccak256(abi.encodePacked(msg.sender, token));
+    bytes32 balanceID = keccak256(abi.encodePacked(msg.sender, token));
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance - amount);
-    IERC20(token).safeTransfer(amount);
+    IERC20(token).safeTransfer(msg.sender, amount);
     emit Withdrawal(msg.sender, token, amount);
   }
 }
