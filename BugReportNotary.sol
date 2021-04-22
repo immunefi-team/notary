@@ -69,6 +69,7 @@ contract BugReportNotary is Initializable {
     reports[reportID].status = newStatus;
   }
 
+  // on-chain disclosure
   function disclose(uint256 reportID, bytes calldata report) external onlyOperator {
     require(keccak256(report) == reports[lastReportID].contentHash);
     reports[lastReportID].disclosed = true;
@@ -88,8 +89,8 @@ contract BugReportNotary is Initializable {
     _payReporter(reportID, paymentToken, amount);
   }
 
-  function getBalance(address user, address token) public view returns (uint256){
-    return balances[keccak256(abi.encodePacked(user, token))];
+  function getBalance(address user, address paymentToken) public view returns (uint256){
+    return balances[keccak256(abi.encodePacked(user, paymentToken))];
   }
 
   function getBalance(bytes32 balanceID) public view returns (uint256) {
@@ -100,22 +101,22 @@ contract BugReportNotary is Initializable {
     balances[balanceID] = newAmount;
   }
 
-  function payReporter(uint256 reportID, address token, uint256 amount) public onlyOperator {
-    _payReporter(reportID, token, amount);
+  function payReporter(uint256 reportID, address paymentToken, uint256 amount) public onlyOperator {
+    _payReporter(reportID, paymentToken, amount);
   }
 
-  function _payReporter(uint256 reportID, address token, uint256 amount) internal {
-    bytes32 balanceID = keccak256(abi.encodePacked(reports[reportID].reporter, token));
+  function _payReporter(uint256 reportID, address paymentToken, uint256 amount) internal {
+    bytes32 balanceID = keccak256(abi.encodePacked(reports[reportID].reporter, paymentToken));
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance + amount);
-    emit PaymentMade(reportID, token, amount);
+    emit PaymentMade(reportID, paymentToken, amount);
   }
 
-  function withdraw(address token, uint amount) public {
-    bytes32 balanceID = keccak256(abi.encodePacked(msg.sender, token));
+  function withdraw(address paymentToken, uint amount) public {
+    bytes32 balanceID = keccak256(abi.encodePacked(msg.sender, paymentToken));
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance - amount);
-    IERC20(token).safeTransfer(msg.sender, amount);
-    emit Withdrawal(msg.sender, token, amount);
+    IERC20(paymentToken).safeTransfer(msg.sender, amount);
+    emit Withdrawal(msg.sender, paymentToken, amount);
   }
 }
