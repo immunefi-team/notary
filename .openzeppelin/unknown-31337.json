@@ -1,0 +1,93 @@
+{
+  "manifestVersion": "3.1",
+  "impls": {
+    "d8b122e784b1ffbda7f7fd04a25fd5b5f4aa4e268427867131ce771f7688afc7": {
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "txHash": "0x1515bbb5056fedb6d96ce01d13c27a70fb43637fd0e6feb32a786db4376f58c0",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:25"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:30"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "lastReportID",
+            "type": "t_uint256",
+            "src": "contracts/BugReportNotary.sol:35"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "reports",
+            "type": "t_mapping(t_uint256,t_struct(BugReport)665_storage)",
+            "src": "contracts/BugReportNotary.sol:36"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "balances",
+            "type": "t_mapping(t_bytes32,t_uint256)",
+            "src": "contracts/BugReportNotary.sol:37"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "operators",
+            "type": "t_mapping(t_address,t_bool)",
+            "src": "contracts/BugReportNotary.sol:38"
+          }
+        ],
+        "types": {
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(BugReport)665_storage)": {
+            "label": "mapping(uint256 => struct BugReportNotary.BugReport)"
+          },
+          "t_struct(BugReport)665_storage": {
+            "label": "struct BugReportNotary.BugReport",
+            "members": [
+              {
+                "label": "reporter",
+                "type": "t_address"
+              },
+              {
+                "label": "contentHash",
+                "type": "t_bytes32"
+              },
+              {
+                "label": "statusBitField",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        }
+      }
+    }
+  },
+  "admin": {
+    "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "txHash": "0x77fd8c58111e1ff120ca4e285e1e2904f923b64b33f16580f986d100fc661ae7"
+  }
+}
