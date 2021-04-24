@@ -3,28 +3,14 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-// to be proxied by https://github.com/OpenZeppelin/openzeppelin-contracts/blob/7f6a1666fac8ecff5dd467d0938069bc221ea9e0/contracts/proxy/transparent/TransparentUpgradeableProxy.sol
-
-contract BugReportNotary is Initializable {
+contract BugReportNotary is Initializable, AccessControl {
 
   using SafeERC20 for IERC20;
 
-  address public constant nativeAsset = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; // mock address that represents the native asset of the chain 
-
-  /*
-  enum Status {
-    NULL,
-    SUBMITTED, // bug has been submitted to immunefi
-    MORE_INFO_REQUESTED, // signal that we need more info and communication didn't stop on our side
-    UNDER_REVIEW, // being confirmed by Immunefi
-    VALIDATED, // issue's existance confirmed by Immunefi, sent to project, and advance paid out
-    IN_TRIAGE, // project has acknowledged the report, and we're waiting on a verdict
-    // VERDICTS
-    REJECTED,
-    ACCEPTED,
-    DUPLICATE
-  }*/
+  address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain 
+  bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
   struct BugReport {
     address reporter; // bug's reporter
@@ -35,7 +21,6 @@ contract BugReportNotary is Initializable {
   uint256 public lastReportID;
   mapping (uint256 => BugReport) public reports;
   mapping (bytes32 => uint256) public balances;
-  mapping (address => bool) public operators;
 
   event ReportSubmitted(address indexed reporter, uint256 reportID);
   event ReportUpdated(uint256 indexed reportID, uint256 prevStatusBitField, uint256 newStatusBitField);
@@ -45,40 +30,29 @@ contract BugReportNotary is Initializable {
   event Withdrawal (address indexed to, address paymentToken, uint amount);
 
   //ACCESS CONTROL
-  modifier onlyOperator {
-    require(operators[msg.sender], "Bug Report Notary: Not Authorized");
-    _;
-  }
-
-  function updateOperator(address user, bool isOperator) external onlyOperator {
-    _updateOperator(user, isOperator);
-  }
-
-  function _updateOperator(address user, bool isOperator) internal {
-    operators[user] = isOperator;
-  }
-
-  function initialize(address initOperator) external initializer {
-    _updateOperator(initOperator, true);
+  function initialize(address initAdmin) external initializer {
+    _setupRole(DEFAULT_ADMIN_ROLE, initAdmin);
+    _setupRole(OPERATOR_ROLE, initAdmin);
   }
 
   // NOTARY FUNCTIONS
-  function submit(bytes32 contentHash, address reporter) external onlyOperator {
+  function submit(bytes32 contentHash, address reporter) external onlyRole(OPERATOR_ROLE) {
     lastReportID++;
     reports[lastReportID] = BugReport(reporter, contentHash, 1);
     emit ReportSubmitted(reporter, lastReportID);
   }
 
-  function updateReport(uint256 reportID, uint256 newStatus) public onlyOperator {
-    emit ReportUpdated(reportID, reports[reportID].statusBitField, newStatus);
-    reports[reportID].statusBitField = newStatus;
+  function updateReport(uint256 reportID, uint256 newStatusBitField) public onlyRole(OPERATOR_ROLE) {
+    uint256 prevStatusBitField = reports[reportID].statusBitField;
+    reports[reportID].statusBitField = newStatusBitField;
+    emit ReportUpdated(reportID, prevStatusBitField, newStatusBitField);
   }
 
   function reportHasStatus(uint256 reportID, uint8 statusType) external view returns (bool) {
     return reports[reportID].statusBitField >> statusType & 1 == 1;
   }
 
-  function setReportStatus(uint256 reportID, uint8 statusType, bool toggle) external onlyOperator {
+  function setReportStatus(uint256 reportID, uint8 statusType, bool toggle) external onlyRole(OPERATOR_ROLE) {
     uint newStatus = reports[reportID].statusBitField;
     if (toggle) {
       newStatus |= 1 << statusType;
@@ -89,7 +63,7 @@ contract BugReportNotary is Initializable {
   }
 
   // on-chain disclosure
-  function disclose(uint256 reportID, bytes calldata report, bytes32[] calldata merkleProof) external onlyOperator {
+  function disclose(uint256 reportID, bytes calldata report, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
     bytes32 currHash = keccak256(report); // leaf node
     for (uint256 i = 0; i < merkleProof.length; i++) {
       bytes32 proofSegment = merkleProof[i];
@@ -107,6 +81,7 @@ contract BugReportNotary is Initializable {
   // PAYMENT FUNCTIONS
 
   function deposit(address paymentToken, uint256 amount) public payable {
+    require(amount > 0, "Bug Report Notary: amount must be greater than 0.");
     if (paymentToken == nativeAsset) {
       require(msg.value == amount);
     } else {
@@ -116,41 +91,31 @@ contract BugReportNotary is Initializable {
     Deposit(msg.sender, paymentToken, amount);
   }
 
-  function depositAndPayReporter(uint256 reportID, address paymentToken, uint256 amount) public payable {
-    deposit(paymentToken, amount);
-    _payReporter(reportID, paymentToken, amount);
-  }
-
   function getBalance(address user, address paymentToken) public view returns (uint256){
-    return balances[keccak256(abi.encodePacked(user, paymentToken))];
+    return balances[getBalanceID(user, paymentToken)];
   }
 
   function getBalance(bytes32 balanceID) public view returns (uint256) {
     return balances[balanceID];
+  }
+  
+  function getBalanceID(address user, address paymentToken) public pure returns (bytes32) {
+      return keccak256(abi.encodePacked(user, paymentToken));
   }
 
   function _modifyBalance(bytes32 balanceID, uint256 newAmount) internal {
     balances[balanceID] = newAmount;
   }
 
-  function payReporter(uint256 reportID, address paymentToken, uint256 amount) public onlyOperator {
-    _payReporter(reportID, paymentToken, amount);
-  }
-
-  function _payReporter(uint256 reportID, address paymentToken, uint256 amount) internal {
-    bytes32 balanceID = keccak256(abi.encodePacked(reports[reportID].reporter, paymentToken));
+  function payReporter(uint256 reportID, address paymentToken, uint256 amount) public onlyRole(OPERATOR_ROLE) {
+    bytes32 balanceID = getBalanceID(msg.sender, paymentToken);
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance + amount);
     emit Payment(reportID, paymentToken, amount);
   }
 
-  function updateReportAndPay(uint256 reportID, uint256 newStatus, address paymentToken, uint256 amount) public onlyOperator {
-    updateReport(reportID, newStatus);
-    _payReporter(reportID, paymentToken, amount);
-  }
-
   function withdraw(address paymentToken, uint amount) public {
-    bytes32 balanceID = keccak256(abi.encodePacked(msg.sender, paymentToken));
+    bytes32 balanceID = getBalanceID(msg.sender, paymentToken);
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance - amount);
     if (paymentToken == nativeAsset) {

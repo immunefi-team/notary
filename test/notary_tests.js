@@ -14,7 +14,8 @@ describe("Notary", function () {
     bounySponsor2;
 
   let Notary, instance;
-  const exampleHash = "0x706618637b8ca922f6290ce1ecd4c31247e9ab75cf0530a0ac95c0332173d7c5"
+  const exampleHash = "0x706618637b8ca922f6290ce1ecd4c31247e9ab75cf0530a0ac95c0332173d7c5";
+  const OPERATOR_ROLE = ethers.utils.id("OPERATOR_ROLE");
   
 
   beforeEach(async () => {
@@ -32,7 +33,7 @@ describe("Notary", function () {
   });
 
   it("should be deployed as a proxy with an initial operator", async function () {
-    const isOperator = await instance.operators(operator1.address);
+    const isOperator = await instance.hasRole(OPERATOR_ROLE, operator1.address);
     expect(isOperator).to.equal(true);
   });
 
@@ -48,7 +49,7 @@ describe("Notary", function () {
 
   it("should not allow non-operator to submit bug", async function () {
     await expect(instance.connect(operator2).submit(exampleHash, reporter1.address))
-      .to.be.revertedWith("Bug Report Notary: Not Authorized");
+      .to.be.reverted;
   });
 });
 
