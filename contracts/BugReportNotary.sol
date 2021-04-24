@@ -92,14 +92,14 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function getBalance(address user, address paymentToken) public view returns (uint256){
-    return balances[getBalanceID(user, paymentToken)];
+    return balances[_getBalanceID(user, paymentToken)];
   }
 
   function getBalance(bytes32 balanceID) public view returns (uint256) {
     return balances[balanceID];
   }
   
-  function getBalanceID(address user, address paymentToken) public pure returns (bytes32) {
+  function _getBalanceID(address user, address paymentToken) internal pure returns (bytes32) {
       return keccak256(abi.encodePacked(user, paymentToken));
   }
 
@@ -108,14 +108,14 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function payReporter(uint256 reportID, address paymentToken, uint256 amount) public onlyRole(OPERATOR_ROLE) {
-    bytes32 balanceID = getBalanceID(msg.sender, paymentToken);
+    bytes32 balanceID = _getBalanceID(msg.sender, paymentToken);
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance + amount);
     emit Payment(reportID, paymentToken, amount);
   }
 
   function withdraw(address paymentToken, uint amount) public {
-    bytes32 balanceID = getBalanceID(msg.sender, paymentToken);
+    bytes32 balanceID = _getBalanceID(msg.sender, paymentToken);
     uint currBalance = getBalance(balanceID);
     _modifyBalance(balanceID, currBalance - amount);
     if (paymentToken == nativeAsset) {
