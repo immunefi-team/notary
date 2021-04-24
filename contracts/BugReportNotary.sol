@@ -74,12 +74,11 @@ contract BugReportNotary is Initializable, AccessControl {
         currHash = keccak256(abi.encodePacked(proofSegment, currHash));
       }
     }
-    require(currHash == reports[lastReportID].contentHash, "Bug Report Notary: Report does not match content hash.");
+    require(currHash == reports[reportID].contentHash, "Bug Report Notary: Report does not match content hash.");
     emit ReportDisclosure(reportID, report);
   }
 
   // PAYMENT FUNCTIONS
-
   function deposit(address paymentToken, uint256 amount) public payable {
     require(amount > 0, "Bug Report Notary: amount must be greater than 0.");
     if (paymentToken == nativeAsset) {
@@ -100,7 +99,7 @@ contract BugReportNotary is Initializable, AccessControl {
   }
   
   function _getBalanceID(address user, address paymentToken) internal pure returns (bytes32) {
-      return keccak256(abi.encodePacked(user, paymentToken));
+    return keccak256(abi.encodePacked(user, paymentToken));
   }
 
   function _modifyBalance(bytes32 balanceID, uint256 newAmount) internal {
