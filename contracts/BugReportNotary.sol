@@ -14,18 +14,27 @@ contract BugReportNotary is Initializable, AccessControl {
   address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain 
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
-  
+  struct Attestation {
+    uint192 _reserved;
+    uint32 blockHeight;
+    bytes32 attestation;
+  }
 
+  struct Disclosure {
+    uint192 _reserved;
+    uint32 blockHeight;
+  }
 
   mapping (bytes32 => uint256) public reports; // report root => block.number
   mapping (bytes32 => uint256) public balances; // keccak256(report root, payment token address) => balance
   mapping (bytes32 => uint256) public reportStatuses; // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
-  mapping (bytes32 => uint256) public attestations; // keccak256(reportStatusID, field) => 
+  mapping (bytes32 => Attestation) public attestations; // keccak256(reportStatusID, key) => Attestation
+  mapping (bytes32 => Disclosure) public disclosures; // keccak256(report root, key) => Disclosure
 
   event ReportSubmitted(bytes32 indexed reportRoot, uint256 seenAtBlock);
   event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint256 newStatusBitField);
-  event ReportDisclosure(uint256 indexed reportRoot, bytes data);
-  event Payment(uint256 indexed reportRoot, address indexed from, address paymentToken, uint256 amount);
+  event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes value, bytes32 salt);
+  event Payment(bytes32 indexed reportRoot, address indexed from, address paymentToken, uint256 amount);
   event Withdrawal(bytes32 indexed reportRoot, address indexed to, address paymentToken, uint256 amount);
 
   //ACCESS CONTROL
@@ -51,8 +60,8 @@ contract BugReportNotary is Initializable, AccessControl {
     _updateReport(reportRoot, firstStatus);
   }
 
-  function checkAttestation(bytes32 reportRoot, bytes value, bytes32[] calldata merkleProof) onlyRole(OPERATOR_ROLE) {
-    _checkProof(reportRoot, abi.encode("description", value), merkleProof);
+  function checkAttestation(bytes32 reportRoot, bytes value, bytes32 salt, bytes32[] calldata merkleProof) onlyRole(OPERATOR_ROLE) {
+    _checkProof(reportRoot, "description", value, data, salt, merkleProof);
   }
 
   function updateReport(bytes32 reportRoot, uint256 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
@@ -71,14 +80,14 @@ contract BugReportNotary is Initializable, AccessControl {
     return reportStatuses[_getReportStatusID(reportRoot, triager)] >> statusType & 1 == 1;
   }
 
-   function disclose(uint256 reportRoot, bytes calldata data, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
-     _checkProof(reportRoot, data, merkleProof);
+   function disclose(uint256 reportRoot, string key, bytes calldata data, bytes32 salt, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
+     _checkProof(reportRoot, key, data, merkleProof);
     emit ReportDisclosure(reportRoot, data);
    }
   // on-chain disclosure
-  function _checkProof(uint256 reportRoot, bytes calldata data, bytes32[] calldata merkleProof) internal view {
+  function _checkProof(uint256 reportRoot, string key, bytes data, bytes32 salt, bytes32[] merkleProof) internal view {
     require(reports[reportRoot] != 0);
-    bytes32 currHash = keccak256(bytes.concat(bytes1(0x00), data));
+    bytes32 currHash = keccak256(bytes.concat(bytes1(0x00), abi.encode(key), data, salt));
     for (uint256 i = 0; i < merkleProof.length; i++) {
       bytes32 proofSegment = merkleProof[i];
 
