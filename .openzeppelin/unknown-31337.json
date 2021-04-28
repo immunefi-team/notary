@@ -1,9 +1,9 @@
 {
   "manifestVersion": "3.1",
   "impls": {
-    "7572fad814e0b9a961d6e94d2b548484b6d47a7e83fcebb8b26977bfbaf5016d": {
+    "69adc86460bba218da78f58c26ece694008317725fa15211e5ea390d775da861": {
       "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-      "txHash": "0xe28442d747f34569a943eb6ffbbbec499f15e8c8a6c6386f99d8645789384bce",
+      "txHash": "0x539fceed2b9f4b3fabb9cf7b218a74e8c621a4fb54c402fc935340704a6d73d9",
       "layout": {
         "storage": [
           {
@@ -28,29 +28,29 @@
             "contract": "BugReportNotary",
             "label": "lastReportID",
             "type": "t_uint256",
-            "src": "contracts/BugReportNotary.sol:21"
+            "src": "contracts/BugReportNotary.sol:23"
           },
           {
             "contract": "BugReportNotary",
             "label": "reports",
-            "type": "t_mapping(t_uint256,t_struct(BugReport)1306_storage)",
-            "src": "contracts/BugReportNotary.sol:22"
+            "type": "t_mapping(t_uint256,t_struct(BugReport)1307_storage)",
+            "src": "contracts/BugReportNotary.sol:24"
           },
           {
             "contract": "BugReportNotary",
             "label": "balances",
             "type": "t_mapping(t_bytes32,t_uint256)",
-            "src": "contracts/BugReportNotary.sol:23"
+            "src": "contracts/BugReportNotary.sol:25"
           }
         ],
         "types": {
           "t_uint256": {
             "label": "uint256"
           },
-          "t_mapping(t_uint256,t_struct(BugReport)1306_storage)": {
+          "t_mapping(t_uint256,t_struct(BugReport)1307_storage)": {
             "label": "mapping(uint256 => struct BugReportNotary.BugReport)"
           },
-          "t_struct(BugReport)1306_storage": {
+          "t_struct(BugReport)1307_storage": {
             "label": "struct BugReportNotary.BugReport",
             "members": [
               {
