@@ -16,13 +16,13 @@ contract BugReportNotary is Initializable, AccessControl {
 
   struct Attestation {
     uint192 _reserved;
-    uint32 blockHeight;
+    uint64 blockHeight;
     bytes32 attestation;
   }
 
   struct Disclosure {
     uint192 _reserved;
-    uint32 blockHeight;
+    uint64 blockHeight;
   }
 
   mapping (bytes32 => uint256) public reports; // report root => block.number
