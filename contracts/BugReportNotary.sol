@@ -13,27 +13,34 @@ contract BugReportNotary is Initializable, AccessControl {
 
   address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain 
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
+  uint256 private constant leafSeperator = 0;
+  uint256 private constant internalNodeSeperator = 1;
+  uint256 private constant attestationSeperator = 2;
+  string private constant reporterKey = "reporter";
+  string private constant descriptionKey = "description";
+
+  struct TimestampPadded {
+    uint8 flags;
+    uint184 _reserved;
+    uint64 blockHeight;
+  }
 
   struct Attestation {
-    uint192 _reserved;
-    uint64 blockHeight;
-    bytes32 attestation;
+    TimestampPadded timestamp;
+    bytes32 commitment;
   }
 
-  struct Disclosure {
-    uint192 _reserved;
-    uint64 blockHeight;
-  }
-
-  mapping (bytes32 => uint256) public reports; // report root => block.number
+  mapping (bytes32 => TimestampPadded) public reports; // report root => block.number
+  mapping (bytes32 => TimestampPadded) public reportStatuses; // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
+  mapping (bytes32 => TimestampPadded) public disclosures; // keccak256(report root, key) => Disclosure
+  mapping (bytes32 => Attestation) public attestations; // keccak256(report root, triager address, key) => Attestation
   mapping (bytes32 => uint256) public balances; // keccak256(report root, payment token address) => balance
-  mapping (bytes32 => uint256) public reportStatuses; // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
-  mapping (bytes32 => Attestation) public attestations; // keccak256(reportStatusID, key) => Attestation
-  mapping (bytes32 => Disclosure) public disclosures; // keccak256(report root, key) => Disclosure
 
-  event ReportSubmitted(bytes32 indexed reportRoot, uint256 seenAtBlock);
-  event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint256 newStatusBitField);
-  event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes value, bytes32 salt);
+  event ReportSubmitted(bytes32 indexed reportRoot, uint64 seenAtBlock);
+  event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint8 newStatusBitField);
+  event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes data);
+  event ReportAttestation(address indexed triager, bytes32 indexed reportRoot, string indexed key, uint64 seenAtBlock);
+
   event Payment(bytes32 indexed reportRoot, address indexed from, address paymentToken, uint256 amount);
   event Withdrawal(bytes32 indexed reportRoot, address indexed to, address paymentToken, uint256 amount);
 
@@ -45,9 +52,9 @@ contract BugReportNotary is Initializable, AccessControl {
 
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
-    require(reports[reportRoot] == 0);
-    uint256 blockNo = block.number;
-    reports[reportRoot] = blockNo;
+    require(reports[reportRoot].blockHeight == 0);
+    uint64 blockNo = uint64(block.number);
+    reports[reportRoot] = TimestampPadded(0, 0, blockNo);
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
@@ -55,46 +62,80 @@ contract BugReportNotary is Initializable, AccessControl {
     return keccak256(abi.encode(reportRoot, triager));
   }
 
-  function attest(bytes32 reportRoot, uint256 firstStatus, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
-    require(reportStatuses[_getReportStatusID(reportRoot, msg.sender)] == 0);
-    _updateReport(reportRoot, firstStatus);
+  function _getAttestationID(bytes32 reportRoot, address triager, string memory key) internal pure returns (bytes32) {
+    return keccak256(abi.encode(reportRoot, triager, key));
   }
 
-  function checkAttestation(bytes32 reportRoot, bytes value, bytes32 salt, bytes32[] calldata merkleProof) onlyRole(OPERATOR_ROLE) {
-    _checkProof(reportRoot, "description", value, data, salt, merkleProof);
+  function _getDisclosureID(bytes32 reportRoot, string memory key) internal pure returns (bytes32) {
+    return keccak256(abi.encode(reportRoot, key));
   }
 
-  function updateReport(bytes32 reportRoot, uint256 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
-    bytes32 reportStatusID = _getReportStatusID(reportRoot, msg.sender);
-    require(reportStatuses[reportStatusID] != 0);
+  function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
+    require(commitment != 0);
+    uint64 blockNo = uint64(block.number);
+    attestations[_getAttestationID(reportRoot, msg.sender, key)] = Attestation(
+      TimestampPadded(0, 0, blockNo),
+      commitment);
+    emit ReportAttestation(msg.sender, reportRoot, key, blockNo);
+  }
+
+  function checkDescriptionAttestation(bytes32 reportRoot, bytes32 salt, bytes calldata value, address triager, bytes32[] calldata merkleProof) external view returns(bool) {
+    bytes32 leaf = keccak256(abi.encode(leafSeperator, descriptionKey, salt, value));
+    _checkProof(reportRoot, leaf, merkleProof);
+
+    bytes32 validCommitment = keccak256(abi.encode(
+      attestationSeperator,
+      descriptionKey,
+      salt,
+      value,
+      triager));
+    Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, descriptionKey)];
+    TimestampPadded memory disclosure = disclosures[_getDisclosureID(reportRoot, descriptionKey)];
+    return  attestation.commitment == validCommitment
+      && attestation.timestamp.blockHeight + 17280 <= disclosure.blockHeight; // ~24 hours with 5 second blocktimes
+  }
+
+  function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
+    require(attestations[_getAttestationID(reportRoot, msg.sender, descriptionKey)].commitment != 0);
     _updateReport(reportRoot, newStatusBitField);
   }
 
-  function _updateReport(bytes32 reportRoot, uint256 newStatusBitField) internal {
+  function _updateReport(bytes32 reportRoot, uint8 newStatusBitField) internal {
     require(newStatusBitField != 0);
-    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = newStatusBitField;
+    reportStatuses[_getReportStatusID(reportRoot, msg.sender)].flags = newStatusBitField;
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
   }
 
-  function reportHasStatus(uint256 reportRoot, address triager, uint8 statusType) external view returns (bool) {
-    return reportStatuses[_getReportStatusID(reportRoot, triager)] >> statusType & 1 == 1;
+  function reportHasStatus(bytes32 reportRoot, address triager, uint8 statusType) external view returns (bool) {
+    return reportStatuses[_getReportStatusID(reportRoot, triager)].flags >> statusType & 1 == 1;
   }
 
-   function disclose(uint256 reportRoot, string key, bytes calldata data, bytes32 salt, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
-     _checkProof(reportRoot, key, data, merkleProof);
-    emit ReportDisclosure(reportRoot, data);
-   }
+  function discloseDescription(bytes32 reportRoot, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
+    bytes memory data = abi.encode(leafSeperator, descriptionKey, salt, value);
+    bytes32 leaf = keccak256(data);
+    _disclose(reportRoot, descriptionKey, leaf, merkleProof);
+    emit ReportDisclosure(reportRoot, descriptionKey, data);
+  }
+
+  function _disclose(bytes32 reportRoot, string memory key, bytes32 leaf, bytes32[] memory merkleProof) internal {
+    TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
+    require(timestamp.blockHeight == 0);
+    _checkProof(reportRoot, leaf, merkleProof);
+    uint64 blockNo = uint64(block.number);
+    timestamp.blockHeight = blockNo;
+  }
+
   // on-chain disclosure
-  function _checkProof(uint256 reportRoot, string key, bytes data, bytes32 salt, bytes32[] merkleProof) internal view {
-    require(reports[reportRoot] != 0);
-    bytes32 currHash = keccak256(bytes.concat(bytes1(0x00), abi.encode(key), data, salt));
+  function _checkProof(bytes32 reportRoot, bytes32 leaf, bytes32[] memory merkleProof) internal view {
+    require(reports[reportRoot].blockHeight != 0);
+    bytes32 currHash = leaf;
     for (uint256 i = 0; i < merkleProof.length; i++) {
       bytes32 proofSegment = merkleProof[i];
 
       if (currHash <= proofSegment) {
-        currHash = keccak256(bytes.concat(bytes1(0x01), currHash, proofSegment));
+        currHash = keccak256(abi.encode(internalNodeSeperator, currHash, proofSegment));
       } else {
-        currHash = keccak256(bytes.concat(bytes1(0x01), proofSegment, currHash));
+        currHash = keccak256(abi.encode(internalNodeSeperator, proofSegment, currHash));
       }
     }
     require(currHash == reportRoot, "Bug Report Notary: Merkle proof failed.");
@@ -112,7 +153,7 @@ contract BugReportNotary is Initializable, AccessControl {
     balances[balanceID] = newAmount;
   }
 
-  function payReporter(bytes32 reportRoot, address paymentToken, uint256 amount) public payable {
+  function payReporter(bytes32 reportRoot, address paymentToken, uint256 amount) external payable {
     require(amount > 0);
     bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
     uint256 currBalance = balances[balanceID];
@@ -126,11 +167,12 @@ contract BugReportNotary is Initializable, AccessControl {
     }
   }
 
-  function withdraw(bytes32 reportRoot, address paymentToken, uint256 amount, bytes32[] calldata merkleProof) public {
+  function withdraw(bytes32 reportRoot, address paymentToken, uint256 amount, bytes32 salt, bytes32[] calldata merkleProof) external {
     bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
-    uint256 currBalance = getBalance(balanceID);
+    uint256 currBalance = balances[balanceID];
     _modifyBalance(balanceID, currBalance - amount);
-    _checkProof(reportRoot, abi.encode("reporter", msg.sender), merkleProof);
+    bytes32 leaf = keccak256(abi.encode(leafSeperator, reporterKey, salt, msg.sender));
+    _checkProof(reportRoot, leaf, merkleProof);
     emit Withdrawal(reportRoot, msg.sender, paymentToken, amount);
     if (paymentToken == nativeAsset) {
       (bool sent, ) = payable(msg.sender).call{value: amount}("");
