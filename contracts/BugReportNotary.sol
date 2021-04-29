@@ -9,7 +9,7 @@ import "hardhat/console.sol";
 
 contract BugReportNotary is Initializable, AccessControl {
 
-  using SafeERC20 for IERC20;
+  using SafeERC20 for IERC20; 
 
   address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain 
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -56,6 +56,15 @@ contract BugReportNotary is Initializable, AccessControl {
     uint64 blockNo = uint64(block.number);
     reports[reportRoot] = TimestampPadded(0, 0, blockNo);
     emit ReportSubmitted(reportRoot, blockNo);
+  }
+
+  function retrieveData(string memory key, btyes memory data) public pure returns (uint256 _seperator, string _key, bytes32 _salt) {
+    if (key == reporterKey) {
+      (_seperator, _key, _salt,) = abi.decode(data, (uint256, string, bytes32, address));
+    }
+    if (key == descriptionKey) {
+      (_seperator, _key, _salt,) = abi.decode(data, (uint256, string, bytes32, bytes));
+    }
   }
 
   function _getReportStatusID(bytes32 reportRoot, address triager) internal pure returns (bytes32) {
@@ -110,19 +119,15 @@ contract BugReportNotary is Initializable, AccessControl {
     return reportStatuses[_getReportStatusID(reportRoot, triager)].flags >> statusType & 1 == 1;
   }
 
-  function discloseDescription(bytes32 reportRoot, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
-    bytes memory data = abi.encode(leafSeperator, descriptionKey, salt, value);
-    bytes32 leaf = keccak256(data);
-    _disclose(reportRoot, descriptionKey, leaf, merkleProof);
-    emit ReportDisclosure(reportRoot, descriptionKey, data);
-  }
-
-  function _disclose(bytes32 reportRoot, string memory key, bytes32 leaf, bytes32[] memory merkleProof) internal {
+  function disclose(bytes32 reportRoot, string calldata key, bytes calldata data, bytes32[] calldata merkleProof) external onlyRole(OPERATOR_ROLE) {
+    (uint256 _seperator, string _key,) = retrieveData(key, data);
+    require(_key == key && _seperator == leafSeperator);
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
     require(timestamp.blockHeight == 0);
-    _checkProof(reportRoot, leaf, merkleProof);
+    _checkProof(reportRoot, keccak256(data), merkleProof);
     uint64 blockNo = uint64(block.number);
     timestamp.blockHeight = blockNo;
+    emit ReportDisclosure(reportRoot, key, data);
   }
 
   // on-chain disclosure
