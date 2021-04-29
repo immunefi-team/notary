@@ -104,17 +104,17 @@ contract BugReportNotary is Initializable, AccessControl {
       && attestation.timestamp.blockHeight + 17280 <= disclosure.blockHeight; // ~24 hours with 5 second blocktimes
   }
 
+  function checkAttestation(){
+
+  }
+
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
     require(attestations[_getAttestationID(reportRoot, msg.sender, descriptionKey)].commitment != 0);
-    _updateReport(reportRoot, newStatusBitField);
-  }
-
-  function _updateReport(bytes32 reportRoot, uint8 newStatusBitField) internal {
     require(newStatusBitField != 0);
-    reportStatuses[_getReportStatusID(reportRoot, msg.sender)].flags = newStatusBitField;
+    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, block.number);
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
   }
-
+  
   function reportHasStatus(bytes32 reportRoot, address triager, uint8 statusType) external view returns (bool) {
     return reportStatuses[_getReportStatusID(reportRoot, triager)].flags >> statusType & 1 == 1;
   }
