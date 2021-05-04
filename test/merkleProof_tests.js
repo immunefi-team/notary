@@ -6,23 +6,14 @@ const { MerkleTree } = require('merkletreejs');
 const abiCoder = ethers.utils.defaultAbiCoder;
 
 function getValueTypes(key) {
-    let types;
-    switch (key) {
-      case "reporter":
-        types = ["address"];
-        break;
-      case "description":
-        types = ["bytes"];
-        break;
-      case "title":
-        types = ["bytes"];
-        break;
-      case "severity":
-        types = ["bytes"];
-        break;
-    }
-    return types;
-  }
+  return {
+    "reporter": ["address"],
+    "description": ["bytes"],
+    "title": ["bytes"],
+    "severity": ["bytes"]
+  }[key];
+}
+  
 
 function generateLeafData(key, salt, values) {
   return abiCoder.encode(["uint256", "string", "bytes32", ...getValueTypes(key)], [0, key, salt, ...values]);
@@ -79,7 +70,8 @@ describe("Merkle Tree", function () {
         const leafData = generateLeafData(...a);
         const leaf = generateLeaf(...a);
         const proof = tree.getHexProof(leaf);
-        await expect(instance.connect(operator1).disclose(root, "reporter", leafData, proof)).to.emit(instance, "ReportDisclosure").withArgs(root, "reporter", leafData);
+        await expect(instance.connect(operator1).disclose(root, "reporter", leafData, proof))
+          .to.emit(instance, "ReportDisclosure").withArgs(root, "reporter", leafData);
     });
 });
 
