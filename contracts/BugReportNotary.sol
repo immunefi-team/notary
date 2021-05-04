@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import "hardhat/console.sol";
 
@@ -163,18 +164,8 @@ contract BugReportNotary is Initializable, AccessControl {
 
   // on-chain disclosure
   function _checkProof(bytes32 reportRoot, bytes32 leaf, bytes32[] memory merkleProof) internal view {
-    require(reports[reportRoot].blockHeight != 0);
-    bytes32 currHash = leaf;
-    for (uint256 i = 0; i < merkleProof.length; i++) {
-      bytes32 proofSegment = merkleProof[i];
-
-      if (currHash <= proofSegment) {
-        currHash = keccak256(abi.encode(internalNodeSeperator, currHash, proofSegment));
-      } else {
-        currHash = keccak256(abi.encode(internalNodeSeperator, proofSegment, currHash));
-      }
-    }
-    require(currHash == reportRoot, "Bug Report Notary: Merkle proof failed.");
+    require(reports[reportRoot].blockHeight != 0, "Bug Report Notary: Merkle root not submitted.");
+    require(MerkleProof.verify(merkleProof, reportRoot, leaf), "Bug Report Notary: Merkle proof failed.");
   }
 
   function getBalance(bytes32 reportRoot, address paymentToken) public view returns (uint256) {
