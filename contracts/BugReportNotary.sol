@@ -92,13 +92,14 @@ contract BugReportNotary is Initializable, AccessControl {
     emit ReportAttestation(msg.sender, reportRoot, key, blockNo);
   }
 
-  function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) external view {
+  function _validateBlockHeight(bytes32 reportRoot, uint64 eventBlockHeight) internal view {
+    require(eventBlockHeight + ATTESTATION_DELAY <= disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].blockHeight);
+  }
+
+  function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
-    uint64 disclosureBlockHeight = disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].blockHeight;
-    require(attestation.timestamp.blockHeight + ATTESTATION_DELAY <= disclosureBlockHeight);
-
+    validateBlockHeight(reportRoot, attestation.timestamp.blockHeight);
     require(attestation.commitment == _hashAttestation(triager, salt, value));
-
     _checkProof(reportRoot, _hashLeaf(KEY_REPORT, salt, value), merkleProof);
   }
 
@@ -109,8 +110,19 @@ contract BugReportNotary is Initializable, AccessControl {
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
   }
 
-  function reportHasStatus(bytes32 reportRoot, address triager, uint8 statusType) external view returns (bool) {
-    return reportStatuses[_getReportStatusID(reportRoot, triager)].flags >> statusType & 1 == 1;
+  function _getFlag(uint256 flags, uint8 which) internal pure returns (bool) {
+    return flags >> which & 1 == 1;
+  }
+
+  function reportHasStatus(bytes32 reportRoot, address triager, uint8 statusType) public view returns (bool) {
+    return _getFlag(reportStatuses[_getReportStatusID(reportRoot, triager)].flags, statusType);
+  }
+
+  function validateReportStatus(bytes32 reportRoot, address triager, uint8 statusType, bytes32 salt, bytes32 calldata value, bytes32[] calldata merkleProof) public view returns (bool) {
+    validateAttestation(reportRoot, triager, salt, value, merkleProof);
+    TimestampPadded memory reportStatus = reportStatuses[_getReportStatusID(reportRoot, triager)];
+    validateBlockHeight(reportRoot, reportStatus.blockHeight);
+    return _getFlag(reportStatus.flags, statusType);
   }
 
   function disclose(bytes32 reportRoot, string calldata key, byte32 salt, bytes calldata value, bytes32[] calldata merkleProof)
