@@ -62,10 +62,6 @@ contract BugReportNotary is Initializable, AccessControl {
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
-  function _hashAttestation(address triager, bytes32 salt, bytes calldata value) internal pure returns (bytes32) {
-    return keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
-  }
-
   function _getReportStatusID(bytes32 reportRoot, address triager) internal pure returns (bytes32) {
     return keccak256(abi.encode(reportRoot, triager));
   }
@@ -95,7 +91,8 @@ contract BugReportNotary is Initializable, AccessControl {
   function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
     validateBlockHeight(reportRoot, attestation.timestamp.blockHeight);
-    require(attestation.commitment == _hashAttestation(triager, salt, value));
+    bytes32 attestationHash = keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
+    require(attestation.commitment == attestationHash);
     _checkProof(reportRoot, KEY_REPORT, salt, value, merkleProof);
   }
 
