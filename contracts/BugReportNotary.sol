@@ -84,7 +84,9 @@ contract BugReportNotary is Initializable, AccessControl {
 
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0);
-    attestations[_getAttestationID(reportRoot, msg.sender, key)] = Attestation(
+    Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
+    require(attestation.timestamp.blockheight == 0 && attestation.commitment == 0x0);
+    attestation = Attestation(
       TimestampPadded(0, 0, block.number.toUint64()),
       commitment);
     emit ReportAttestation(msg.sender, reportRoot, key, blockNo);
