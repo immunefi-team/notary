@@ -128,7 +128,7 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   // on-chain disclosure
-  function _checkProof(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) internal view {
+  function _checkProof(bytes32 reportRoot, string memory key, bytes32 salt, bytes memory value, bytes32[] memory merkleProof) internal view {
     require(reports[reportRoot].blockHeight != 0, "Bug Report Notary: Merkle root not submitted.");
     bytes32 leafHash = keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
     require(MerkleProof.verify(merkleProof, reportRoot, leafHash), "Bug Report Notary: Merkle proof failed.");
