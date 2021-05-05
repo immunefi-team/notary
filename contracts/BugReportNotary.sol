@@ -10,9 +10,9 @@ import "hardhat/console.sol";
 
 contract BugReportNotary is Initializable, AccessControl {
 
-  using SafeERC20 for IERC20; 
+  using SafeERC20 for IERC20;
 
-  address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain 
+  address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
   uint256 private constant leafSeperator = 0;
   uint256 private constant attestationSeperator = 1;
