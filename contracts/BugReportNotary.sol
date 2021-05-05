@@ -121,7 +121,7 @@ contract BugReportNotary is Initializable, AccessControl {
     return _getFlag(reportStatus.flags, statusType);
   }
 
-  function disclose(bytes32 reportRoot, string calldata key, byte32 salt, bytes calldata value, bytes32[] calldata merkleProof)
+  function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof)
    external onlyRole(OPERATOR_ROLE) {
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
     require(timestamp.blockHeight == 0);
