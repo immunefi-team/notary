@@ -5,12 +5,14 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/Address.sol";
 
 import "hardhat/console.sol";
 
 contract BugReportNotary is Initializable, AccessControl {
 
   using SafeERC20 for IERC20;
+  using Address for address;
 
   address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -156,8 +158,7 @@ contract BugReportNotary is Initializable, AccessControl {
     _modifyBalance(balanceID, currBalance - amount);
     emit Withdrawal(reportRoot, reporter, paymentToken, amount);
     if (paymentToken == nativeAsset) {
-      (bool sent, ) = payable(reporter).call{value: amount}("");
-      require(sent, "Bug Report Notary: Failed to send native asset");
+      payable(reporter).sendValue(amount);
     } else {
       IERC20(paymentToken).safeTransfer(reporter, amount);
     }
