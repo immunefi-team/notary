@@ -15,10 +15,9 @@ contract BugReportNotary is Initializable, AccessControl {
   address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain 
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
   uint256 private constant leafSeperator = 0;
-  uint256 private constant internalNodeSeperator = 1;
-  uint256 private constant attestationSeperator = 2;
+  uint256 private constant attestationSeperator = 1;
   string private constant reporterKey = "reporter";
-  string private constant descriptionKey = "description";
+  string private constant reportKey = "report";
   uint64 private constant attestationValidityDelay = 17280;
 
   struct TimestampPadded {
@@ -81,7 +80,7 @@ contract BugReportNotary is Initializable, AccessControl {
         (actual.seperator, actual.key, actual.salt, _restAddress1) = abi.decode(data, (uint256, string, bytes32, address));
         actual.valueHash = keccak256(abi.encode(_restAddress1));
       }
-      if (_areStringsEqual(valids.key, descriptionKey)) {
+      if (_areStringsEqual(valids.key, reportKey)) {
         (actual.seperator, actual.key, actual.salt, _restBytes1) = abi.decode(data, (uint256, string, bytes32, bytes));
         actual.valueHash = keccak256(abi.encode(_restBytes1));
       }
@@ -91,7 +90,7 @@ contract BugReportNotary is Initializable, AccessControl {
         (actual.seperator, actual.key, actual.salt, _restAddress1, actual.triager) = abi.decode(data, (uint256, string, bytes32, address, address));
         actual.valueHash = keccak256(abi.encode(_restAddress1));
       }
-      if (_areStringsEqual(valids.key, descriptionKey)) {
+      if (_areStringsEqual(valids.key, reportKey)) {
         (actual.seperator, actual.key, actual.salt, _restBytes1 , actual.triager) = abi.decode(data, (uint256, string, bytes32, bytes, address));
         actual.valueHash = keccak256(abi.encode(_restBytes1));
       }
@@ -141,7 +140,7 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
-    require(attestations[_getAttestationID(reportRoot, msg.sender, descriptionKey)].commitment != 0);
+    require(attestations[_getAttestationID(reportRoot, msg.sender, reportKey)].commitment != 0);
     require(newStatusBitField != 0);
     reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, uint64(block.number));
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
