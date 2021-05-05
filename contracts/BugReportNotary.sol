@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import "hardhat/console.sol";
 
@@ -13,6 +14,7 @@ contract BugReportNotary is Initializable, AccessControl {
 
   using SafeERC20 for IERC20;
   using Address for address;
+  using SafeCast for uint256;
 
   address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -56,8 +58,7 @@ contract BugReportNotary is Initializable, AccessControl {
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
     require(reports[reportRoot].blockHeight == 0);
-    uint64 blockNo = uint64(block.number);
-    reports[reportRoot] = TimestampPadded(0, 0, blockNo);
+    reports[reportRoot] = TimestampPadded(0, 0, block.number.toUint64());
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
@@ -75,9 +76,8 @@ contract BugReportNotary is Initializable, AccessControl {
 
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0);
-    uint64 blockNo = uint64(block.number);
     attestations[_getAttestationID(reportRoot, msg.sender, key)] = Attestation(
-      TimestampPadded(0, 0, blockNo),
+      TimestampPadded(0, 0, block.number.toUint64()),
       commitment);
     emit ReportAttestation(msg.sender, reportRoot, key, blockNo);
   }
@@ -97,7 +97,7 @@ contract BugReportNotary is Initializable, AccessControl {
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
     require(attestations[_getAttestationID(reportRoot, msg.sender, reportKey)].commitment != 0);
     require(newStatusBitField != 0);
-    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, uint64(block.number));
+    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, block.number.toUint64()));
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
   }
 
@@ -111,8 +111,7 @@ contract BugReportNotary is Initializable, AccessControl {
     require(timestamp.blockHeight == 0);
     bytes32 leafHash = keccak256(bytes.concat(abi.encode(leafseparator, key, salt), value));
     _checkProof(reportRoot, leafHash, merkleProof);
-    uint64 blockNo = uint64(block.number);
-    timestamp.blockHeight = blockNo;
+    timestamp.blockHeight = block.number.toUint64();
     emit ReportDisclosure(reportRoot, key, data);
   }
 
