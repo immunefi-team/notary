@@ -62,10 +62,6 @@ contract BugReportNotary is Initializable, AccessControl {
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
-  function _hashLeaf(string calldata key, bytes32 salt, bytes calldata value) internal pure returns (bytes32) {
-    return keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
-  }
-
   function _hashAttestation(address triager, bytes32 salt, bytes calldata value) internal pure returns (bytes32) {
     return keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
   }
@@ -100,7 +96,7 @@ contract BugReportNotary is Initializable, AccessControl {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
     validateBlockHeight(reportRoot, attestation.timestamp.blockHeight);
     require(attestation.commitment == _hashAttestation(triager, salt, value));
-    _checkProof(reportRoot, _hashLeaf(KEY_REPORT, salt, value), merkleProof);
+    _checkProof(reportRoot, KEY_REPORT, salt, value, merkleProof);
   }
 
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
@@ -129,14 +125,15 @@ contract BugReportNotary is Initializable, AccessControl {
    external onlyRole(OPERATOR_ROLE) {
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
     require(timestamp.blockHeight == 0);
-    _checkProof(reportRoot, _hashLeaf(key, salt, value), merkleProof);
+    _checkProof(reportRoot, key, salt, value, merkleProof);
     timestamp.blockHeight = block.number.toUint64();
     emit ReportDisclosure(reportRoot, key, data);
   }
 
   // on-chain disclosure
-  function _checkProof(bytes32 reportRoot, bytes32 leafHash, bytes32[] memory merkleProof) internal view {
+  function _checkProof(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) internal view {
     require(reports[reportRoot].blockHeight != 0, "Bug Report Notary: Merkle root not submitted.");
+    bytes32 leafHash = keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
     require(MerkleProof.verify(merkleProof, reportRoot, leafHash), "Bug Report Notary: Merkle proof failed.");
   }
 
@@ -171,7 +168,7 @@ contract BugReportNotary is Initializable, AccessControl {
    external {
     bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
     uint256 currBalance = balances[balanceID];
-    _checkProof(reportRoot, _hashLeaf(KEY_REPORTER, salt, abi.encode(reporter)), merkleProof);
+    _checkProof(reportRoot, KEY_REPORTER, salt, abi.encode(reporter), merkleProof);
     _modifyBalance(balanceID, currBalance - amount);
     emit Withdrawal(reportRoot, reporter, paymentToken, amount);
     if (paymentToken == NATIVE_ASSET) {
