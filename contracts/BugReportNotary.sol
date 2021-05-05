@@ -67,41 +67,6 @@ contract BugReportNotary is Initializable, AccessControl {
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
-  function _areStringsEqual(string memory a, string memory b) internal pure returns (bool) {
-    return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)); // this is how you test string equality in solidity...
-  }
-
-  function validateData(Validations memory valids, bytes memory data)
-   internal pure {
-    Validations memory actual = Validations(0, "", 0x0, 0x0, address(0x0));
-    address _restAddress1; bytes memory _restBytes1;
-    if (valids.seperator == leafSeperator) {
-      if (_areStringsEqual(valids.key, reporterKey)) {
-        (actual.seperator, actual.key, actual.salt, _restAddress1) = abi.decode(data, (uint256, string, bytes32, address));
-        actual.valueHash = keccak256(abi.encode(_restAddress1));
-      }
-      if (_areStringsEqual(valids.key, reportKey)) {
-        (actual.seperator, actual.key, actual.salt, _restBytes1) = abi.decode(data, (uint256, string, bytes32, bytes));
-        actual.valueHash = keccak256(abi.encode(_restBytes1));
-      }
-    }
-    if (valids.seperator == attestationSeperator) {
-      if (_areStringsEqual(valids.key, reporterKey)) {
-        (actual.seperator, actual.key, actual.salt, _restAddress1, actual.triager) = abi.decode(data, (uint256, string, bytes32, address, address));
-        actual.valueHash = keccak256(abi.encode(_restAddress1));
-      }
-      if (_areStringsEqual(valids.key, reportKey)) {
-        (actual.seperator, actual.key, actual.salt, _restBytes1 , actual.triager) = abi.decode(data, (uint256, string, bytes32, bytes, address));
-        actual.valueHash = keccak256(abi.encode(_restBytes1));
-      }
-    }
-    require(actual.seperator == valids.seperator
-      && _areStringsEqual(actual.key, valids.key)
-      && (valids.salt == bytes32(0x0) || actual.salt == valids.salt )
-      && (valids.valueHash == bytes32(0x0)  || actual.valueHash == valids.valueHash)
-      && (valids.triager == address(0x0) || actual.triager == valids.triager));
-  }
-
   function _getReportStatusID(bytes32 reportRoot, address triager) internal pure returns (bytes32) {
     return keccak256(abi.encode(reportRoot, triager));
   }
