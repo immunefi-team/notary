@@ -16,13 +16,13 @@ contract BugReportNotary is Initializable, AccessControl {
   using Address for address;
   using SafeCast for uint256;
 
-  address public constant nativeAsset = address(0x0); // mock address that represents the native asset of the chain
+  address public constant NATIVE_ASSET = address(0x0); // mock address that represents the native asset of the chain
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
-  uint256 private constant leafSeperator = 0;
-  uint256 private constant attestationSeperator = 1;
-  string private constant reporterKey = "reporter";
-  string private constant reportKey = "report";
-  uint64 private constant attestationValidityDelay = 17280;
+  uint256 private constant SEPARATOR_LEAF = 0;
+  uint256 private constant SEPARATOR_ATTESTATION = 1;
+  string private constant KEY_REPORTER = "reporter";
+  string private constant KEY_REPORT = "report";
+  uint64 private constant ATTESTATION_DELAY = 17280;
 
   struct TimestampPadded {
     uint8 flags;
@@ -62,6 +62,14 @@ contract BugReportNotary is Initializable, AccessControl {
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
+  function _hashLeaf(string calldata key, bytes32 salt, bytes calldata value) internal pure returns (bytes32) {
+    return keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
+  }
+
+  function _hashAttestation(address triager, bytes32 salt, bytes calldata value) internal pure returns (bytes32) {
+    return keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
+  }
+
   function _getReportStatusID(bytes32 reportRoot, address triager) internal pure returns (bytes32) {
     return keccak256(abi.encode(reportRoot, triager));
   }
@@ -83,19 +91,17 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) external view {
-    Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, reportKey)];
-    uint64 disclosureBlockHeight = disclosures[_getDisclosureID(reportRoot, reportKey)].blockHeight;
-    require(attestation.timestamp.blockHeight + attestationValidityDelay <= disclosureBlockHeight);
+    Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
+    uint64 disclosureBlockHeight = disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].blockHeight;
+    require(attestation.timestamp.blockHeight + ATTESTATION_DELAY <= disclosureBlockHeight);
 
-    bytes32 attestationHash = keccak256(bytes.concat(abi.encode(attestationSeperator, triager, reportKey, salt), value));
-    require(attestation.commitment == attestationHash);
+    require(attestation.commitment == _hashAttestation(triager, salt, value));
 
-    bytes32 leafHash = keccak256(bytes.concat(abi.encode(leafSeparator, reportKey, salt), value));
-    _checkProof(reportRoot, leafHash, merkleProof);
+    _checkProof(reportRoot, _hashLeaf(KEY_REPORT, salt, value), merkleProof);
   }
 
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
-    require(attestations[_getAttestationID(reportRoot, msg.sender, reportKey)].commitment != 0);
+    require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0);
     require(newStatusBitField != 0);
     reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, block.number.toUint64()));
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
@@ -109,8 +115,7 @@ contract BugReportNotary is Initializable, AccessControl {
    external onlyRole(OPERATOR_ROLE) {
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
     require(timestamp.blockHeight == 0);
-    bytes32 leafHash = keccak256(bytes.concat(abi.encode(leafseparator, key, salt), value));
-    _checkProof(reportRoot, leafHash, merkleProof);
+    _checkProof(reportRoot, _hashLeaf(key, salt, value), merkleProof);
     timestamp.blockHeight = block.number.toUint64();
     emit ReportDisclosure(reportRoot, key, data);
   }
@@ -139,7 +144,7 @@ contract BugReportNotary is Initializable, AccessControl {
     uint256 currBalance = balances[balanceID];
     _modifyBalance(balanceID, currBalance + amount);
     emit Payment(reportRoot, msg.sender, paymentToken, amount);
-    if (paymentToken == nativeAsset) {
+    if (paymentToken == NATIVE_ASSET) {
       require(msg.value == amount);
     } else {
       require(msg.value == 0);
@@ -152,11 +157,10 @@ contract BugReportNotary is Initializable, AccessControl {
    external {
     bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
     uint256 currBalance = balances[balanceID];
-    bytes32 leafHash = keccak256(bytes.concat(abi.encode(leafSeparator, reporterKey, salt), abi.encode(reporter)));
-    _checkProof(reportRoot, leafHash, merkleProof);
+    _checkProof(reportRoot, _hashLeaf(KEY_REPORTER, salt, abi.encode(reporter)), merkleProof);
     _modifyBalance(balanceID, currBalance - amount);
     emit Withdrawal(reportRoot, reporter, paymentToken, amount);
-    if (paymentToken == nativeAsset) {
+    if (paymentToken == NATIVE_ASSET) {
       payable(reporter).sendValue(amount);
     } else {
       IERC20(paymentToken).safeTransfer(reporter, amount);
