@@ -22,12 +22,12 @@ contract BugReportNotary is Initializable, AccessControl {
   uint256 private constant SEPARATOR_ATTESTATION = 1;
   string private constant KEY_REPORTER = "reporter";
   string private constant KEY_REPORT = "report";
-  uint64 private constant ATTESTATION_DELAY = 17280;
+  uint64 private constant ATTESTATION_DELAY = 1 days;
 
   struct TimestampPadded {
     uint8 flags;
     uint184 _reserved;
-    uint64 blockHeight;
+    uint64 timestamp;
   }
 
   struct Attestation {
@@ -41,10 +41,10 @@ contract BugReportNotary is Initializable, AccessControl {
   mapping (bytes32 => Attestation) public attestations; // keccak256(report root, triager address, key) => Attestation
   mapping (bytes32 => uint256) public balances; // keccak256(report root, payment token address) => balance
 
-  event ReportSubmitted(bytes32 indexed reportRoot, uint64 seenAtBlock);
-  event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint8 newStatusBitField);
-  event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes data);
-  event ReportAttestation(address indexed triager, bytes32 indexed reportRoot, string indexed key, uint64 seenAtBlock);
+  event ReportSubmitted(bytes32 indexed reportRoot, uint64 timestamp);
+  event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint8 newStatusBitField, uint64 timestamp);
+  event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes value);
+  event ReportAttestation(address indexed triager, bytes32 indexed reportRoot, string indexed key, uint64 timestamp);
 
   event Payment(bytes32 indexed reportRoot, address indexed from, address paymentToken, uint256 amount);
   event Withdrawal(bytes32 indexed reportRoot, address indexed to, address paymentToken, uint256 amount);
@@ -57,10 +57,10 @@ contract BugReportNotary is Initializable, AccessControl {
 
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
-    require(reports[reportRoot].blockHeight == 0);
-    uint64 blockNo = block.number.toUint64();
-    reports[reportRoot] = TimestampPadded(0, 0, blockNo);
-    emit ReportSubmitted(reportRoot, blockNo);
+    require(reports[reportRoot].timestamp == 0);
+    uint64 timestamp = block.timestamp.toUint64();
+    reports[reportRoot] = TimestampPadded(0, 0, timestamp);
+    emit ReportSubmitted(reportRoot, timestamp);
   }
 
   function _getReportStatusID(bytes32 reportRoot, address triager) internal pure returns (bytes32) {
@@ -78,20 +78,20 @@ contract BugReportNotary is Initializable, AccessControl {
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0);
     Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
-    require(attestation.timestamp.blockHeight == 0 && attestation.commitment == 0x0);
-    uint64 blockNo = block.number.toUint64();
+    require(attestation.timestamp.timestamp == 0 && attestation.commitment == 0x0);
+    uint64 timestamp = block.timestamp.toUint64();
     attestation.commitment = commitment;
-    attestation.timestamp = TimestampPadded(0, 0, blockNo);
-    emit ReportAttestation(msg.sender, reportRoot, key, blockNo);
+    attestation.timestamp = TimestampPadded(0, 0, timestamp);
+    emit ReportAttestation(msg.sender, reportRoot, key, timestamp);
   }
 
-  function _validateBlockHeight(bytes32 reportRoot, uint64 eventBlockHeight) internal view {
-    require(eventBlockHeight + ATTESTATION_DELAY <= disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].blockHeight);
+  function _validateTimestamp(bytes32 reportRoot, uint64 eventTimestamp) internal view {
+    require(eventTimestamp + ATTESTATION_DELAY <= disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].timestamp);
   }
 
   function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
-    _validateBlockHeight(reportRoot, attestation.timestamp.blockHeight);
+    _validateTimestamp(reportRoot, attestation.timestamp.timestamp);
     bytes32 attestationHash = keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
     require(attestation.commitment == attestationHash);
     _checkProof(reportRoot, KEY_REPORT, salt, value, merkleProof);
@@ -100,8 +100,9 @@ contract BugReportNotary is Initializable, AccessControl {
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
     require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0);
     require(newStatusBitField != 0);
-    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, block.number.toUint64());
-    emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
+    uint64 timestamp = block.timestamp.toUint64();
+    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, timestamp);
+    emit ReportUpdated(msg.sender, reportRoot, newStatusBitField, timestamp);
   }
 
   function _getFlag(uint256 flags, uint8 which) internal pure returns (bool) {
@@ -115,22 +116,22 @@ contract BugReportNotary is Initializable, AccessControl {
   function validateReportStatus(bytes32 reportRoot, address triager, uint8 statusType, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view returns (bool) {
     validateAttestation(reportRoot, triager, salt, value, merkleProof);
     TimestampPadded memory reportStatus = reportStatuses[_getReportStatusID(reportRoot, triager)];
-    _validateBlockHeight(reportRoot, reportStatus.blockHeight);
+    _validateTimestamp(reportRoot, reportStatus.timestamp);
     return _getFlag(reportStatus.flags, statusType);
   }
 
   function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof)
    external onlyRole(OPERATOR_ROLE) {
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
-    require(timestamp.blockHeight == 0);
+    require(timestamp.timestamp == 0);
     _checkProof(reportRoot, key, salt, value, merkleProof);
-    timestamp.blockHeight = block.number.toUint64();
+    timestamp.timestamp = block.timestamp.toUint64();
     emit ReportDisclosure(reportRoot, key, value);
   }
 
   // on-chain disclosure
   function _checkProof(bytes32 reportRoot, string memory key, bytes32 salt, bytes memory value, bytes32[] calldata merkleProof) internal view {
-    require(reports[reportRoot].blockHeight != 0, "Bug Report Notary: Merkle root not submitted.");
+    require(reports[reportRoot].timestamp != 0, "Bug Report Notary: Merkle root not submitted.");
     bytes32 leafHash = keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
     require(MerkleProof.verify(merkleProof, reportRoot, leafHash), "Bug Report Notary: Merkle proof failed.");
   }
