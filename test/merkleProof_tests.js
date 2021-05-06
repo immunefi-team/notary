@@ -8,27 +8,26 @@ const abiCoder = ethers.utils.defaultAbiCoder;
 function getValueTypes(key) {
   return {
     "reporter": ["address"],
-    "description": ["bytes"],
-    "title": ["bytes"],
-    "severity": ["bytes"]
+    "report": ["bytes"],
   }[key];
 }
   
-
-function generateLeafData(key, salt, values) {
-  return abiCoder.encode(["uint256", "string", "bytes32", ...getValueTypes(key)], [0, key, salt, ...values]);
+// value should be passed in encoded, e.g. generateLeafData("reporter", example_salt, abiCoder.encode(["address"], [example_address]) )
+function generateLeafData(key, salt, value) {
+  return ethers.utils.hexConcat([abiCoder.encode(["uint256", "string", "bytes32"], [0, key, salt]), value]);
 }
 
-function generateLeaf(key, salt, values) {
-  return keccak256(generateLeafData(key, salt, values));
+function generateLeaf(key, salt, value) {
+  return keccak256(generateLeafData(key, salt, value));
 }
 
-function generateAttestationData(key, salt, values, triager) {
-  return abiCoder.encode(["uint256", "string", "bytes32", ...getValueTypes(key), "address"], [2, key, salt, ...values, triager]);
+// same deal with value here as above (must be encode first)
+function generateAttestationData(triager, key, salt, value) {
+  return ethers.utils.hexConcat([abiCoder.encode(["uint256", "address", "string", "bytes32"], [1, triager, key, salt]), value]);
 }
 
-function generateCommitment(key, salt, values, triager) {
-  return keccak256(generateAttestationData(key, salt, values, triager));
+function generateCommitment(key, salt, value, triager) {
+  return keccak256(generateAttestationData(key, salt, value, triager));
 }
 
 describe("Merkle Tree", function () {
@@ -55,12 +54,15 @@ describe("Merkle Tree", function () {
         bounySponsor2 ] = await ethers.getSigners();
       
       Notary = await ethers.getContractFactory("BugReportNotary");
-      instance = await upgrades.deployProxy(Notary, [operator1.address]);
+      // using unsafe allow b/c this module isn't smart enough to detect that the delegate call in the OZ Address library can't be reached
+      instance = await upgrades.deployProxy(Notary, [operator1.address], { unsafeAllow: ['delegatecall'] });
     });
 
     it("should allow disclosure on a submitted report hash", async function () {
-        const a = ["reporter", ethers.constants.HashZero, [ethers.constants.AddressZero]];
-        const b = ["description", ethers.constants.HashZero, [ethers.constants.HashZero]];
+        const exampleAddress = abiCoder.encode(["address"], [ethers.constants.AddressZero]);
+        const exampleReport = abiCoder.encode(["bytes"], [ethers.constants.HashZero]);
+        const a = ["reporter", ethers.constants.HashZero, exampleAddress];
+        const b = ["report", ethers.constants.HashZero, exampleReport];
         const leaves = [a,b].map(v => generateLeaf(...v));
         const tree = new MerkleTree(leaves, keccak256, { sort: true });
 
@@ -70,8 +72,9 @@ describe("Merkle Tree", function () {
         const leafData = generateLeafData(...a);
         const leaf = generateLeaf(...a);
         const proof = tree.getHexProof(leaf);
-        await expect(instance.connect(operator1).disclose(root, "reporter", leafData, proof))
-          .to.emit(instance, "ReportDisclosure").withArgs(root, "reporter", leafData);
+        await expect(instance.connect(operator1).disclose(root, "reporter", ethers.constants.HashZero, exampleAddress, proof))
+          .to.emit(instance, "ReportDisclosure").withArgs(root, "reporter", exampleAddress);
+        console.log(exampleAddress);
     });
 });
 

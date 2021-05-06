@@ -13,7 +13,7 @@ import "hardhat/console.sol";
 contract BugReportNotary is Initializable, AccessControl {
 
   using SafeERC20 for IERC20;
-  using Address for address;
+  using Address for address payable;
   using SafeCast for uint256;
 
   address public constant NATIVE_ASSET = address(0x0); // mock address that represents the native asset of the chain
@@ -58,7 +58,8 @@ contract BugReportNotary is Initializable, AccessControl {
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
     require(reports[reportRoot].blockHeight == 0);
-    reports[reportRoot] = TimestampPadded(0, 0, block.number.toUint64());
+    uint64 blockNo = block.number.toUint64();
+    reports[reportRoot] = TimestampPadded(0, 0, blockNo);
     emit ReportSubmitted(reportRoot, blockNo);
   }
 
@@ -77,10 +78,10 @@ contract BugReportNotary is Initializable, AccessControl {
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0);
     Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
-    require(attestation.timestamp.blockheight == 0 && attestation.commitment == 0x0);
-    attestation = Attestation(
-      TimestampPadded(0, 0, block.number.toUint64()),
-      commitment);
+    require(attestation.timestamp.blockHeight == 0 && attestation.commitment == 0x0);
+    uint64 blockNo = block.number.toUint64();
+    attestation.commitment = commitment;
+    attestation.timestamp = TimestampPadded(0, 0, blockNo);
     emit ReportAttestation(msg.sender, reportRoot, key, blockNo);
   }
 
@@ -90,7 +91,7 @@ contract BugReportNotary is Initializable, AccessControl {
 
   function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
-    validateBlockHeight(reportRoot, attestation.timestamp.blockHeight);
+    _validateBlockHeight(reportRoot, attestation.timestamp.blockHeight);
     bytes32 attestationHash = keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
     require(attestation.commitment == attestationHash);
     _checkProof(reportRoot, KEY_REPORT, salt, value, merkleProof);
@@ -99,7 +100,7 @@ contract BugReportNotary is Initializable, AccessControl {
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
     require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0);
     require(newStatusBitField != 0);
-    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, block.number.toUint64()));
+    reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, block.number.toUint64());
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField);
   }
 
@@ -111,10 +112,10 @@ contract BugReportNotary is Initializable, AccessControl {
     return _getFlag(reportStatuses[_getReportStatusID(reportRoot, triager)].flags, statusType);
   }
 
-  function validateReportStatus(bytes32 reportRoot, address triager, uint8 statusType, bytes32 salt, bytes32 calldata value, bytes32[] calldata merkleProof) public view returns (bool) {
+  function validateReportStatus(bytes32 reportRoot, address triager, uint8 statusType, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view returns (bool) {
     validateAttestation(reportRoot, triager, salt, value, merkleProof);
     TimestampPadded memory reportStatus = reportStatuses[_getReportStatusID(reportRoot, triager)];
-    validateBlockHeight(reportRoot, reportStatus.blockHeight);
+    _validateBlockHeight(reportRoot, reportStatus.blockHeight);
     return _getFlag(reportStatus.flags, statusType);
   }
 
@@ -124,11 +125,11 @@ contract BugReportNotary is Initializable, AccessControl {
     require(timestamp.blockHeight == 0);
     _checkProof(reportRoot, key, salt, value, merkleProof);
     timestamp.blockHeight = block.number.toUint64();
-    emit ReportDisclosure(reportRoot, key, data);
+    emit ReportDisclosure(reportRoot, key, value);
   }
 
   // on-chain disclosure
-  function _checkProof(bytes32 reportRoot, string memory key, bytes32 salt, bytes memory value, bytes32[] memory merkleProof) internal view {
+  function _checkProof(bytes32 reportRoot, string memory key, bytes32 salt, bytes memory value, bytes32[] calldata merkleProof) internal view {
     require(reports[reportRoot].blockHeight != 0, "Bug Report Notary: Merkle root not submitted.");
     bytes32 leafHash = keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
     require(MerkleProof.verify(merkleProof, reportRoot, leafHash), "Bug Report Notary: Merkle proof failed.");
