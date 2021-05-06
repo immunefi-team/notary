@@ -35,9 +35,9 @@ contract BugReportNotary is Initializable, AccessControl {
     bytes32 commitment;
   }
 
-  mapping (bytes32 => TimestampPadded) public reports; // report root => block.number
+  mapping (bytes32 => TimestampPadded) public reports; // report root => block.timestamp
   mapping (bytes32 => TimestampPadded) public reportStatuses; // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
-  mapping (bytes32 => TimestampPadded) public disclosures; // keccak256(report root, key) => Disclosure
+  mapping (bytes32 => TimestampPadded) public disclosures; // keccak256(report root, key) => block.timestamp
   mapping (bytes32 => Attestation) public attestations; // keccak256(report root, triager address, key) => Attestation
   mapping (bytes32 => uint256) public balances; // keccak256(report root, payment token address) => balance
 
