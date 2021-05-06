@@ -1,0 +1,20 @@
+on: [push]
+
+jobs:
+  main_job:
+    runs-on: ubuntu-latest
+    name: Solidity Security 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Slither Static Analysis
+        uses: arbazkiraak/slither-static-analysis-action@v11
+        with:
+          slither-version: '0.7.1'
+          run-npm-install: true
+          high-threshold: 1
+          medium-threshold: 1
+          low-threshold: 1
+          optimization-threshold: 1
+          informative-threshold: 10
+          projectPath: "contracts"
