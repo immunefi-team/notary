@@ -21,7 +21,7 @@ function generateLeaf(key, salt, value) {
   return keccak256(generateLeafData(key, salt, value));
 }
 
-// same deal with value here as above (must be encode first)
+// same deal with value here as above (must be encoded first)
 function generateAttestationData(triager, key, salt, value) {
   return ethers.utils.hexConcat([abiCoder.encode(["uint256", "address", "string", "bytes32"], [1, triager, key, salt]), value]);
 }

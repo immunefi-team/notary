@@ -3,4 +3,5 @@ node_modules
 #Hardhat files
 cache
 artifacts
-.openzeppelin/unknown-31337.json
+.openzeppelin/
+.env

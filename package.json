@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.1.0-rc.0",
+    "dotenv": "^9.0.0",
     "keccak256": "^1.0.2",
-    "merkletreejs": "^0.2.18"
+    "merkletreejs": "^0.2.18",
+    "path": "^0.12.7"
   }
 }
