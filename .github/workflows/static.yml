@@ -1,0 +1,20 @@
+on: [push]
+
+jobs:
+  main_job:
+    runs-on: ubuntu-latest
+    name: static code analysis 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Slither Static Analysis
+        uses: arbazkiraak/slither-static-analysis-action@v12
+        with:
+          slither-version: '0.8.0'
+          run-npm-install: true
+          high-threshold: 1
+          medium-threshold: 1
+          low-threshold: 1
+          optimization-threshold: 1
+          informative-threshold: 10
+          projectPath: "contracts"
