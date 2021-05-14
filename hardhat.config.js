@@ -1,5 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 require('@openzeppelin/hardhat-upgrades');
+require('hardhat-deploy');
 const { config } = require("dotenv");
 const { resolve } = require("path");
 config({ path: resolve(__dirname, "./.env") });
@@ -30,8 +31,25 @@ module.exports = {
       },
       chainId: 77,
       url: "https://sokol.poa.network"
+    },
+    xdai: {
+      accounts: {
+        mnemonic: process.env.MNEMONIC,
+        count: 10,
+        initialIndex: 6
+      },
+      chainId: 100,
+      url: "https://rpc.xdaichain.com/"
     }
   },
-  solidity: "0.8.4"
+  solidity: {
+    version: "0.8.4",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200
+      }
+    }
+  }
 };
 
