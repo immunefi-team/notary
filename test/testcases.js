@@ -1,7 +1,7 @@
 // WIP: WORK IN PROGRESS
 const keccak256 = require('keccak256');
 const { expect } = require("chai");
-const { upgrades,ethers } = require("hardhat");
+const { upgrades, ethers } = require("hardhat");
 const { MerkleTree } = require('merkletreejs');
 const abiCoder = ethers.utils.defaultAbiCoder; //An AbiCoder created when the library is imported which is used by the Interface.
 
@@ -157,14 +157,14 @@ function F_getAttestionID(report, triageraddress, key) {
 }
 
 
-function F_withdraw(report,key){
+function F_withdraw(report, key) {
     const reportRoot = generateReportRoot(report);
     const reportAddress = report.paymentWalletAddress;
     const salt = report.salts;
 
-    const merkleProofval = merkleProof(report,key);
+    const merkleProofval = merkleProof(report, key);
 
-    return [reportRoot,reportAddress,salt,merkleProofval];
+    return [reportRoot, reportAddress, salt, merkleProofval];
 }
 
 // [!] TESTING SETUP
@@ -177,25 +177,25 @@ describe("Notary Test Workflows", function () {
         Reporter,
         Client;
 
-    let salt,report,triagerAddress
-    
+    let salt, report, triagerAddress
+
     beforeEach(async () => {
         [Deployer, Reporter, Triager, Client] = await ethers.getSigners();
 
         Notary = await ethers.getContractFactory("BugReportNotary");
         instance = await upgrades.deployProxy(Notary, [Deployer.address], { unsafeAllow: ['delegatecall'] });
-        
+
         salt = generateRandomSalt();
         report = { "id": 1, "salts": salt, "paymentWalletAddress": Deployer.address, "project": "0xbf971d4360414c84ea06783d0ea51e69035ee526" }
         triagerAddress = Deployer.address;
-        
+
         //console.log("[-] Deployed to :", instance.address, "\n====================\n");
     });
 
-    describe("=> Testing OpenZ initialize()",function(){
-        it("Should only be able to called ONCE when deploying/upgrading",async function(){
+    describe("=> Testing OpenZ initialize()", function () {
+        it("Should only be able to called ONCE when deploying/upgrading", async function () {
             await expect(instance.connect(Deployer).initialize(Deployer.address))
-            .to.be.reverted; // since contract is already deployed and already intialized 
+                .to.be.reverted; // since contract is already deployed and already intialized 
         })
 
         // it("Should only be callable by the proxy owner",async function(){
@@ -203,7 +203,7 @@ describe("Notary Test Workflows", function () {
         // })
     });
 
-    describe("=> Testing submit()",function(){
+    describe("=> Testing submit()", function () {
         let getReportRoot;
 
         beforeEach(async () => {
@@ -214,40 +214,40 @@ describe("Notary Test Workflows", function () {
             await expect(instance.connect(Deployer).submit(getReportRoot));
         })
 
-        it("If caller doesnt have operator role, Access Control check fail",async function(){
+        it("If caller doesnt have operator role, Access Control check fail", async function () {
             await expect(instance.connect(Reporter).submit(getReportRoot)).to.be.reverted;
         })
 
-        it("Only Accepts a report root of merkle tree constructed from the report",async function(){
+        it("Only Accepts a report root of merkle tree constructed from the report", async function () {
             await expect(instance.connect(Deployer).submit(getReportRoot))
             //.to.emit(instance, "ReportSubmitted").
             //withArgs(getReportRoot,ethers.block.timestamp); // NEED HELP HERE WITH CURRENT BLOCK TIMESTAMP
         })
     });
 
-    describe("=> Testing Attest()",function(){
+    describe("=> Testing Attest()", function () {
         let getReportRoot,
             key,
             commitment;
 
         beforeEach(async () => {
             await instance.connect(Deployer).submit(F_submit(report)); //reportRoot
-            [getReportRoot,key,commitment] = F_attest(report,triagerAddress); 
+            [getReportRoot, key, commitment] = F_attest(report, triagerAddress);
         });
 
-        it("Attest the report",async function(){
-            await expect(instance.connect(Deployer).attest(getReportRoot,key,commitment))
+        it("Attest the report", async function () {
+            await expect(instance.connect(Deployer).attest(getReportRoot, key, commitment))
             // .to.emit(instance,"ReportAttestation")
             // .withArgs(triagerAddress,getReportRoot,key,ethers.block.timestamp);
         })
 
         it("Attest the report: only OPERATOR", async function () {
             await expect(instance.connect(Reporter).attest(getReportRoot, key, commitment))
-            .to.be.reverted;
+                .to.be.reverted;
         })
     })
 
-    describe("=> Testing getBalance()",function(){
+    describe("=> Testing getBalance()", function () {
         let getReportRoot;
 
         beforeEach(async () => {
@@ -255,8 +255,8 @@ describe("Notary Test Workflows", function () {
             await instance.connect(Deployer).submit(getReportRoot);
         });
 
-        it("should return the amount of tokens deposited to a given report",async function(){
-            Before_Balance = await instance.connect(Deployer).getBalance(getReportRoot,NativeAsset);
+        it("should return the amount of tokens deposited to a given report", async function () {
+            Before_Balance = await instance.connect(Deployer).getBalance(getReportRoot, NativeAsset);
             console.log(ethers.utils.formatEther(Before_Balance));
 
             // Paying in Native Asset , 9 wei , tiniest bounty ever paid in the history
@@ -271,7 +271,7 @@ describe("Notary Test Workflows", function () {
         })
     })
 
-    describe("=> Testing PayReporter()",function(){
+    describe("=> Testing PayReporter()", function () {
         let getReportRoot;
 
         beforeEach(async () => {
@@ -279,7 +279,7 @@ describe("Notary Test Workflows", function () {
             await instance.connect(Deployer).submit(getReportRoot);
         });
 
-        it("should allow anyone to deposit a bounty payment in any er20 token or the native asset to a given report",async function(){
+        it("should allow anyone to deposit a bounty payment in any er20 token or the native asset to a given report", async function () {
             // Paying in Native
             await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 9, { value: 9 }));
             // Paying in ERC20 : I think, in order to send ERC20 , our msg.sender first need to have that tokens in account.
@@ -292,7 +292,7 @@ describe("Notary Test Workflows", function () {
     })
 
 
-    describe("=> Testing Withdraw()",function(){
+    describe("=> Testing Withdraw()", function () {
         let reportRoot,
             reportAddress,
             salt,
@@ -304,29 +304,30 @@ describe("Notary Test Workflows", function () {
             await instance.connect(Client).payReporter(reportRoot, NativeAsset, 100, { value: 100 })
         });
 
-        it("should allow multiple withdrawals",async function(){
-            await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset,5,salt,reportAddress,merkleProofval))
+        it("should allow multiple withdrawals", async function () {
+            await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 5, salt, reportAddress, merkleProofval))
             //Balance = await instance.connect(Reporter).getBalance(reportRoot, NativeAsset);
             await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 5, salt, reportAddress, merkleProofval))
         })
 
-        it("no underflow/overflow should exist",async function(){
+        it("no underflow/overflow should exist", async function () {
             // TODO
         })
     })
 
 
-    describe("=> upgradeToAndCall()",function(){
-        it("Upgrading the current proxy",async function(){
+    describe("=> upgradeToAndCall()", function () {
+        it("Upgrading the current proxy", async function () {
             // current proxy address, Update Smart Contract Reference, New Deployer address
             await upgrades.upgradeProxy(instance.address, Notary, { args: Deployer.address, unsafeAllow: ['delegatecall'] })
-            
+
         })
 
-        it("Only ProxyOwner should able to upgrade the contract",async function(){
-            // How to try upgrading with other User??, upgrades.upgradeProxy uses deployer.address i guess.
+        it("Only ProxyOwner should able to upgrade the contract", async function () {
+            await upgrades.admin.transferProxyAdminOwnership(instance.address,Client.address);
             
-            //await upgrades.upgradeProxy(instance.address, Notary, { args: Client.address, unsafeAllow: ['delegatecall'] })
+            await expect(upgrades.upgradeProxy(instance.address, Notary, { unsafeAllow: ['delegatecall'] }))
+                .to.be.revertedWith("caller is not the owner");
         })
     })
 
