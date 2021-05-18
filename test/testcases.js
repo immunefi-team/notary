@@ -1,5 +1,4 @@
 // WIP: WORK IN PROGRESS
-
 const keccak256 = require('keccak256');
 const { expect } = require("chai");
 const { upgrades,ethers } = require("hardhat");
@@ -320,12 +319,14 @@ describe("Notary Test Workflows", function () {
     describe("=> upgradeToAndCall()",function(){
         it("Upgrading the current proxy",async function(){
             // current proxy address, Update Smart Contract Reference, New Deployer address
-            await upgrades.upgradeProxy(instance.address, Notary, { args: Client, unsafeAllow: ['delegatecall'] })
+            await upgrades.upgradeProxy(instance.address, Notary, { args: Deployer.address, unsafeAllow: ['delegatecall'] })
             
         })
-        
+
         it("Only ProxyOwner should able to upgrade the contract",async function(){
-            // TODO
+            // How to try upgrading with other User??, upgrades.upgradeProxy uses deployer.address i guess.
+            
+            //await upgrades.upgradeProxy(instance.address, Notary, { args: Client.address, unsafeAllow: ['delegatecall'] })
         })
     })
 
