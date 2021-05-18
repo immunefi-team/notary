@@ -223,6 +223,8 @@ describe("Notary Test Workflows", function () {
             //.to.emit(instance, "ReportSubmitted").
             //withArgs(getReportRoot,ethers.block.timestamp); // NEED HELP HERE WITH CURRENT BLOCK TIMESTAMP
         })
+
+        // TODO: add multiple same root  check
     });
 
     describe("=> Testing Attest()", function () {
@@ -245,6 +247,10 @@ describe("Notary Test Workflows", function () {
             await expect(instance.connect(Reporter).attest(getReportRoot, key, commitment))
                 .to.be.reverted;
         })
+
+        // TODOS
+        // attest twice
+        // commitnet is 0 then revert
     })
 
     describe("=> Testing getBalance()", function () {
@@ -282,13 +288,19 @@ describe("Notary Test Workflows", function () {
         it("should allow anyone to deposit a bounty payment in any er20 token or the native asset to a given report", async function () {
             // Paying in Native
             await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 9, { value: 9 }));
+            
             // Paying in ERC20 : I think, in order to send ERC20 , our msg.sender first need to have that tokens in account.
             //await expect(instance.connect(Client).payReporter(getReportRoot, '0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3', 9));
 
             After_Balance = await instance.connect(Deployer).getBalance(getReportRoot, '0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3');
             console.log(ethers.utils.formatEther(After_Balance));
-
+            // wrapped ether erc20, .deposit function ,  //  0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         })
+
+         // TODOS
+        // 1. invalid contract addr check
+        // 2. check to not  pay 0,
+        // 3. we use wrapped ether , check to make sure  we are not using native asset value.
     })
 
 
@@ -313,6 +325,78 @@ describe("Notary Test Workflows", function () {
         it("no underflow/overflow should exist", async function () {
             // TODO
         })
+
+         // TODOS
+        // withdrawal reportRoot with different account caller check
+        // check if SC amount >= user wallet account 
+        // with invalid address, with native asset, ether wrapper.
+        // withdrawl if report is not paid
+        // withdraw if amount passwd is "0"
+    })
+
+    describe("=> updateReport()",function(){
+        let getReportRoot,
+            key,
+            commitment,
+            attest_id,
+            newStatusBitField;
+
+        beforeEach(async () => {
+            await instance.connect(Deployer).submit(F_submit(report));
+            [getReportRoot, key, commitment] = F_attest(report, triagerAddress);
+            instance.connect(Deployer).attest(getReportRoot, key, commitment)
+
+            newStatusBitField = 00000001;
+            Rkey = ReportKeys.report;
+            attest_id = F_getAttestionID(report, triagerAddress, Rkey);
+        })
+
+        it("update trying",async function(){
+            // https://github.com/immunefi-team/notary/blob/main/contracts/BugReportNotary.sol#L100
+            const check_exist = await instance.connect(Deployer).attestations[attest_id];
+            console.log(check_exist);
+
+            await instance.connect(Deployer).updateReport(getReportRoot,newStatusBitField);
+
+            val = await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress,0)
+            console.log("====>",val);
+            
+            // TODOS
+            // flag : 1 => false
+            //  update report  on non-exist root
+            // if  attest not perfommed, then no update 
+        })
+    })
+
+    describe("=> disclose()",function(){
+        let getReportRoot,
+            merkleProofval,
+            commit,
+            rr,
+            kk,
+            key,
+            salt,
+            value;
+
+        this.beforeEach(async () => {
+            getReportRoot = F_submit(report)
+            await instance.connect(Deployer).submit(getReportRoot);
+            
+            [rr, kk, commit] = F_attest(report, triagerAddress)
+            await instance.connect(Deployer).attest(rr,kk,commit)
+
+            key = ReportKeys.report;
+            [getReportRoot, salt, value, merkleProofval] = F_disclose(report,key);
+        });
+
+        it("Disclosure Trying",async function(){
+            await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
+            .to.emit(instance,'ReportDisclosure')
+            .withArgs(getReportRoot,key,value);
+
+            // TimeStampped validationfailed because we cann't attest the report which is  inthe  process of disclosure.
+            //const validate = await instance.connect(Deployer).validateAttestation(getReportRoot, Deployer.address, salt, value, merkleProofval);
+        })
     })
 
 
@@ -324,8 +408,8 @@ describe("Notary Test Workflows", function () {
         })
 
         it("Only ProxyOwner should able to upgrade the contract", async function () {
-            await upgrades.admin.transferProxyAdminOwnership(instance.address,Client.address);
-            
+            await upgrades.admin.transferProxyAdminOwnership(instance.address, Client.address);
+
             await expect(upgrades.upgradeProxy(instance.address, Notary, { unsafeAllow: ['delegatecall'] }))
                 .to.be.revertedWith("caller is not the owner");
         })
