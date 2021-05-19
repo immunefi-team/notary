@@ -56,7 +56,7 @@ contract BugReportNotary is Initializable, AccessControl {
 
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
-    require(reports[reportRoot].timestamp == 0);
+    require(reports[reportRoot].timestamp == 0, "Bug Report Notary: Report already submitted");
     uint64 timestamp = block.timestamp.toUint64();
     reports[reportRoot] = TimestampPadded(0, 0, timestamp);
     emit ReportSubmitted(reportRoot, timestamp);
@@ -75,9 +75,9 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
-    require(commitment != 0x0);
+    require(commitment != 0x0, "Bug Report Notary: Invalid commitment");
     Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
-    require(attestation.timestamp.timestamp == 0 && attestation.commitment == 0x0);
+    require(attestation.timestamp.timestamp == 0 && attestation.commitment == 0x0, "Bug Report Notary: Attestation already submitted");
     uint64 timestamp = block.timestamp.toUint64();
     attestation.commitment = commitment;
     attestation.timestamp = TimestampPadded(0, 0, timestamp);
@@ -85,20 +85,20 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function _validateTimestamp(bytes32 reportRoot, uint64 eventTimestamp) internal view {
-    require(eventTimestamp + ATTESTATION_DELAY <= disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].timestamp);
+    require(eventTimestamp + ATTESTATION_DELAY <= disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].timestamp, "Bug Report Notary: Invalid timestamp");
   }
 
   function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
     _validateTimestamp(reportRoot, attestation.timestamp.timestamp);
     bytes32 attestationHash = keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
-    require(attestation.commitment == attestationHash);
+    require(attestation.commitment == attestationHash, "Bug Report Notary: Commitment does not match valid attestation");
     _checkProof(reportRoot, KEY_REPORT, salt, value, merkleProof);
   }
 
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
-    require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0);
-    require(newStatusBitField != 0);
+    require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0. "Bug Report Notary: Report is unattested");
+    require(newStatusBitField != 0, "Bug Report Notary: Invalid status update");
     uint64 timestamp = block.timestamp.toUint64();
     reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, timestamp);
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField, timestamp);
@@ -122,7 +122,7 @@ contract BugReportNotary is Initializable, AccessControl {
   function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof)
    external onlyRole(OPERATOR_ROLE) {
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
-    require(timestamp.timestamp == 0);
+    require(timestamp.timestamp == 0, "Bug Report Notary: Key already disclosed for report");
     _checkProof(reportRoot, key, salt, value, merkleProof);
     timestamp.timestamp = block.timestamp.toUint64();
     emit ReportDisclosure(reportRoot, key, value);
@@ -147,15 +147,15 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function payReporter(bytes32 reportRoot, address paymentToken, uint256 amount) external payable {
-    require(amount > 0);
+    require(amount > 0, "Bug Report Notary: Amount must be larger than zero");
     bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
     uint256 currBalance = balances[balanceID];
     _modifyBalance(balanceID, currBalance + amount);
     emit Payment(reportRoot, msg.sender, paymentToken, amount);
     if (paymentToken == NATIVE_ASSET) {
-      require(msg.value == amount);
+      require(msg.value == amount, "Bug Report Notary: Insufficient funds sent");
     } else {
-      require(msg.value == 0);
+      require(msg.value == 0, "Bug Report Notary: Native asset sent for ERC20 payment");
       IERC20(paymentToken).safeTransferFrom(msg.sender, address(this), amount);
     }
   }
