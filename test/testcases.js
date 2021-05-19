@@ -224,7 +224,11 @@ describe("Notary Test Workflows", function () {
             //withArgs(getReportRoot,ethers.block.timestamp); // NEED HELP HERE WITH CURRENT BLOCK TIMESTAMP
         })
 
-        // TODO: add multiple same root  check
+        it("Revert on submitting same root mulitple times",async function(){
+            await expect(instance.connect(Deployer).submit(getReportRoot))
+            await expect(instance.connect(Deployer).submit(getReportRoot)).to.be.reverted; // .timestamp already exists in `reports` mapping.
+        })
+
     });
 
     describe("=> Testing Attest()", function () {
@@ -248,9 +252,18 @@ describe("Notary Test Workflows", function () {
                 .to.be.reverted;
         })
 
-        // TODOS
-        // attest twice
-        // commitnet is 0 then revert
+        it("Attest Twice should revert",async function(){
+            await expect(instance.connect(Deployer).attest(getReportRoot, key, commitment))
+            await expect(instance.connect(Deployer).attest(getReportRoot, key, commitment)).to.be.reverted;
+        })
+
+        //  Error: incorrect data length
+        it("Attest Commitment is Empty then revert",async function(){
+            //await instance.connect(Deployer).attest(getReportRoot, key, 0x0000000000000000000000000000000000000000000000000000000000000000 );
+        //     await instance.connect(Deployer).attest(getReportRoot, key,keccak256(0x0));
+        //     await instance.connect(Deployer).attest(getReportRoot, key, ethers.constants.AddressZero)
+        })
+
     })
 
     describe("=> Testing getBalance()", function () {
@@ -289,13 +302,22 @@ describe("Notary Test Workflows", function () {
             // Paying in Native
             await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 9, { value: 9 }));
             
-            // Paying in ERC20 : I think, in order to send ERC20 , our msg.sender first need to have that tokens in account.
-            //await expect(instance.connect(Client).payReporter(getReportRoot, '0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3', 9));
 
-            After_Balance = await instance.connect(Deployer).getBalance(getReportRoot, '0x761d38e5ddf6ccf6cf7c55759d5210750b5d60f3');
+            // Paying in ERC20 : I think, in order to send ERC20 , our msg.sender first need to have that tokens in account.
+            //await expect(instance.connect(Client).payReporter(getReportRoot, '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', 9));
+
+            After_Balance = await instance.connect(Deployer).getBalance(getReportRoot, '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
             console.log(ethers.utils.formatEther(After_Balance));
             // wrapped ether erc20, .deposit function ,  //  0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
         })
+
+        it("Paying amount ZERO should revert by the require statement",async function(){
+            await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 0, { value: 9 })).to.be.reverted;
+        })
+
+        // it("Paying with invalid paymentToken address should revert",async function(){
+        //     await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 0, { value: 9 })).to.be.reverted;
+        // })
 
          // TODOS
         // 1. invalid contract addr check
