@@ -356,7 +356,6 @@ describe("Notary Test Workflows",async function () {
         })
     })
 
-
     describe("===> Testing Withdraw()", function () {
         let reportRoot,
             reportAddress,
@@ -368,16 +367,35 @@ describe("Notary Test Workflows",async function () {
             await instance.connect(Deployer).submit(reportRoot);
         });
 
-        it("Withdraw(): Anyone can perform a withdraw on report",async function(){ // but the amount will get `withdrawed` to the address which was provided along with the report. 
-            Initial_Balance = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
-            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 1000000, { value: 1000000 })
+        if ("Withdraw(): Anyonce can perform a withdraw on a report", async function () { // but the amount will get `withdrawed` to the address which was provided along with the report. 
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 1000000000000000, { value: 1000000000000000 })
+        })
 
-            Before_Balance = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
-            await expect(instance.connect(Client).withdraw(reportRoot, NativeAsset, 500, salt, reportAddress, merkleProofval)) // report should have now 0.0000000000000095 wei
-            After_Balance = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+        it("Withdraw(): Check balances before/after withdraw on a report for address and 'balances' map (smart contract storage)",async function(){
+            // storage -> stored on smart contract memory i.e `balances` mapping
+            // address -> actual balance of the address
 
-            // Why they both are same?
-            console.log(Initial_Balance,Before_Balance,After_Balance);
+            // Intially: Balances would be "0.0" for report and address
+            
+            Initial_Balance_address = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+            Initial_Balance_storage = ethers.utils.formatEther(await instance.connect(Client).getBalance(reportRoot,NativeAsset));
+
+           // IERC20(paymentToken).safeTransferFrom(msg.sender, address(this), amount); : Storing the payment amount on SC `balances`
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 1000000000000000, { value: 1000000000000000 })
+
+            Before_Balance_address = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+            Before_Balance_storage = ethers.utils.formatEther(await instance.connect(Client).getBalance(reportRoot, NativeAsset));
+
+            await expect(instance.connect(Client).withdraw(reportRoot, NativeAsset, 50000000000, salt, reportAddress, merkleProofval)) // report should have now 0.0000000000000095 wei
+            
+            After_Balance_address = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+            After_Balance_storage = ethers.utils.formatEther(await instance.connect(Client).getBalance(reportRoot, NativeAsset));
+
+            // storage
+            console.log(Initial_Balance_storage, Before_Balance_storage, After_Balance_storage);
+
+            // address :  Why they both are same?
+            console.log(Initial_Balance_address, Before_Balance_address, After_Balance_address);
         })
 
         it("Withdraw(): Withdraw the Custom ERC20 Balance from the report",async function(){
@@ -410,8 +428,9 @@ describe("Notary Test Workflows",async function () {
             await expect(instance.connect(Deployer).withdraw(reportRoot, 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, 10, salt, reportAddress, merkleProofval)).to.be.reverted;
         })
 
-        it("Withdraw(): If smart contract balance <= amount input", async function(){
-            // TODO
+        it("Withdraw(): revert if withdrawal amount > report amount", async function(){
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 100, { value: 100 })
+            await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 1000, salt, reportAddress, merkleProofval)).to.be.reverted;
         })
 
         it("Withdraw(): No underflow/overflow on amount", async function () {
@@ -443,6 +462,7 @@ describe("Notary Test Workflows",async function () {
         it("updateReport(): Update the report with newStatusBitField and check ReportStatus",async function(){
             instance.connect(Deployer).attest(getReportRoot, key, commitment)
 
+             // 0 here is to get the `first` bit from 8 bits , i.e 1 byte = 8 bits, since boolean use only first bit
             // false: report has been not updated
             await expect(await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress, 0)).to.be.false;
 
@@ -512,12 +532,27 @@ describe("Notary Test Workflows",async function () {
         // should fail?
         it("disclose(): Doing Update on Disclosed Report should revert", async function () {
             await instance.connect(Deployer).attest(getReportRoot, key, commit)
+            
+            await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
+                .to.emit(instance, 'ReportDisclosure')
+                .withArgs(getReportRoot, key, value);
+
+            console.log("STATUS : ", await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress, 0))
+
+            await expect(instance.connect(Deployer).updateReport(getReportRoot, 00000001));
+
+            console.log("STATUS : ", await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress, 0))
+        })
+
+        it("disclose(): Disclosing the already disclosed report should revert", async function () {
+            await instance.connect(Deployer).attest(rr, kk, commit)
 
             await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
                 .to.emit(instance, 'ReportDisclosure')
                 .withArgs(getReportRoot, key, value);
 
-            await expect(instance.connect(Deployer).updateReport(getReportRoot, 00000001));
+            await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
+                .to.be.revertedWith("Bug Report Notary: Key already disclosed for report");
         })
     })
 
@@ -536,7 +571,6 @@ describe("Notary Test Workflows",async function () {
                 .to.be.revertedWith("caller is not the owner");
         })
     })
-
 
 
 });
