@@ -3,6 +3,7 @@ const keccak256 = require('keccak256');
 const { expect } = require("chai");
 const { upgrades, ethers } = require("hardhat");
 const { MerkleTree } = require('merkletreejs');
+const { isConstructSignatureDeclaration } = require('typescript');
 const abiCoder = ethers.utils.defaultAbiCoder; //An AbiCoder created when the library is imported which is used by the Interface.
 
 // [!] CONSTANTS
@@ -17,7 +18,7 @@ const ReportKeys = {
 const operator_keccak = keccak256("OPERATOR_ROLE");
 const NativeAsset = '0x0000000000000000000000000000000000000000' //  ETH on mainet, XDAI on paonetwork
 
-// [!] Merkle Helpers
+// [!] Merkle Helper Functions
 
 function generateLeafData(key, salt, value) {
     return ethers.utils.hexConcat([abiCoder.encode(["uint256", "string", "bytes32"], [0, key, salt]), value]);
@@ -99,7 +100,7 @@ function merkleProof(report, key) {
     return tree.getHexProof(leaf);
 }
 
-// [!] Helpers
+// [!] Helper Functions
 
 function generateRandomSalt() {
     const buf = ethers.utils.randomBytes(32);
@@ -123,8 +124,8 @@ function generateCommitment(report, triagerAddr) {
 }
 
 
-
-// [!] SMART CONTRACT FUNCTION GENERATORS
+// [!] SMART CONTRACT FUNCTION GENERATORS to use them in mocha test cases:
+// useful to generate arguments for functions.
 
 async function F_submit(report) {
     const reportRoot = generateReportRoot(report);
@@ -172,161 +173,187 @@ function F_withdraw(report, key) {
 describe("Notary Test Workflows", function () {
     let Notary, instance;
 
+    // addresses to
     let Deployer,
         Triager,
         Reporter,
+        ERC20Payer,
         Client;
 
     let salt, report, triagerAddress
 
     beforeEach(async () => {
-        [Deployer, Reporter, Triager, Client] = await ethers.getSigners();
+        [Deployer, Reporter, Triager, Client, ERC20Payer] = await ethers.getSigners();
 
         Notary = await ethers.getContractFactory("BugReportNotary");
         instance = await upgrades.deployProxy(Notary, [Deployer.address], { unsafeAllow: ['delegatecall'] });
 
         salt = generateRandomSalt();
+        
+        // Note: Report PaymentWalletAddress is Deployer.address 
         report = { "id": 1, "salts": salt, "paymentWalletAddress": Deployer.address, "project": "0xbf971d4360414c84ea06783d0ea51e69035ee526" }
         triagerAddress = Deployer.address;
-
-        //console.log("[-] Deployed to :", instance.address, "\n====================\n");
     });
 
-    describe("=> Testing OpenZ initialize()", function () {
-        it("Should only be able to called ONCE when deploying/upgrading", async function () {
+
+    describe("===> initialize()", function () {
+        // since contract is already deployed and already intialized 
+        it("initialize() : Revert on re-intialize", async function () {
             await expect(instance.connect(Deployer).initialize(Deployer.address))
-                .to.be.reverted; // since contract is already deployed and already intialized 
+                .to.be.reverted; 
         })
-
-        // it("Should only be callable by the proxy owner",async function(){
-        //     await expect(instance.connect(Deployer).initialize(Deployer.addresss))
-        // })
     });
 
-    describe("=> Testing submit()", function () {
+
+    describe("===> submit()", function () {
         let getReportRoot;
 
         beforeEach(async () => {
             getReportRoot = F_submit(report);
         });
 
-        it("Only Callable by the operator role only", async function () {
+        it("submit(): Only Callable by the operator role only", async function () {
             await expect(instance.connect(Deployer).submit(getReportRoot));
         })
 
-        it("If caller doesnt have operator role, Access Control check fail", async function () {
+        it("submit(): Revert if called by other than OPERATOR ROLE", async function () {
             await expect(instance.connect(Reporter).submit(getReportRoot)).to.be.reverted;
         })
 
-        it("Only Accepts a report root of merkle tree constructed from the report", async function () {
+        it("submit(): Only Accepts a report root of merkle tree constructed from the report", async function () {
             await expect(instance.connect(Deployer).submit(getReportRoot))
             //.to.emit(instance, "ReportSubmitted").
-            //withArgs(getReportRoot,ethers.block.timestamp); // NEED HELP HERE WITH CURRENT BLOCK TIMESTAMP
+            //withArgs(getReportRoot,ethers.block.timestamp); // TBA, How to generate current block timestamp?
         })
 
-        it("Revert on submitting same root mulitple times",async function(){
+        it("submit(): Revert on submitting same report root multiple times",async function(){
             await expect(instance.connect(Deployer).submit(getReportRoot))
-            await expect(instance.connect(Deployer).submit(getReportRoot)).to.be.reverted; // .timestamp already exists in `reports` mapping.
+            await expect(instance.connect(Deployer).submit(getReportRoot)).revertedWith("Bug Report Notary: Report already submitted"); // since report already exists in `reports` mapping.
         })
 
     });
 
-    describe("=> Testing Attest()", function () {
+    describe("===> Attest()", function () {
         let getReportRoot,
             key,
             commitment;
 
         beforeEach(async () => {
-            await instance.connect(Deployer).submit(F_submit(report)); //reportRoot
+            await instance.connect(Deployer).submit(F_submit(report));
             [getReportRoot, key, commitment] = F_attest(report, triagerAddress);
         });
 
-        it("Attest the report", async function () {
+        it("Attest(): Attest the report", async function () {
             await expect(instance.connect(Deployer).attest(getReportRoot, key, commitment))
             // .to.emit(instance,"ReportAttestation")
             // .withArgs(triagerAddress,getReportRoot,key,ethers.block.timestamp);
         })
 
-        it("Attest the report: only OPERATOR", async function () {
+        it("Attest(): Revert if Caller is not an Operator", async function () {
             await expect(instance.connect(Reporter).attest(getReportRoot, key, commitment))
                 .to.be.reverted;
         })
 
-        it("Attest Twice should revert",async function(){
+        it("Attest(): Attest multiple times on same report should revert",async function(){
             await expect(instance.connect(Deployer).attest(getReportRoot, key, commitment))
             await expect(instance.connect(Deployer).attest(getReportRoot, key, commitment)).to.be.reverted;
         })
 
         //  Error: incorrect data length
-        it("Attest Commitment is Empty then revert",async function(){
-            //await instance.connect(Deployer).attest(getReportRoot, key, 0x0000000000000000000000000000000000000000000000000000000000000000 );
-        //     await instance.connect(Deployer).attest(getReportRoot, key,keccak256(0x0));
-        //     await instance.connect(Deployer).attest(getReportRoot, key, ethers.constants.AddressZero)
+        it("Attest(): Revert if Attest Commitment is Empty",async function(){
+            await expect(instance.connect(Deployer).attest(getReportRoot, key, 0x000000000000000000000000000000)).to.be.reverted;
         })
 
     })
 
-    describe("=> Testing getBalance()", function () {
-        let getReportRoot;
+    describe("===> getBalance()", function () {
+        let getReportRoot,
+            Balance;
 
         beforeEach(async () => {
             getReportRoot = F_submit(report);
             await instance.connect(Deployer).submit(getReportRoot);
         });
 
-        it("should return the amount of tokens deposited to a given report", async function () {
-            Before_Balance = await instance.connect(Deployer).getBalance(getReportRoot, NativeAsset);
-            console.log(ethers.utils.formatEther(Before_Balance));
+        it("getBalance(): should return the amount of tokens deposited to a given report",async function(){
+            Balance = await instance.connect(Deployer).getBalance(getReportRoot, NativeAsset);
+            await expect(ethers.utils.formatEther(Balance)).to.equal('0.0') // since we didn't paid the report, the initial balance of reporter address is 0
+        })
+    })
 
-            // Paying in Native Asset , 9 wei , tiniest bounty ever paid in the history
-            // https://github.com/immunefi-team/notary/blob/main/contracts/BugReportNotary.sol#L156
+    describe("===> PayReporter()", function () {
+        let getReportRoot,
+            TestTokenERC20,
+            TTKN_address,
+            TTKN_instance;
+
+        // For testing "Paying the report with ERC20 tokens", We are deploying `TestToken` Mock
+        beforeEach(async () => {
+            // Mock initalization
+            TestTokenERC20 = await ethers.getContractFactory("TestToken");
+            TTKN_instance = await TestTokenERC20.deploy(ERC20Payer.address);
+            TTKN_address = await TTKN_instance.address;
+
+            console.log("TTKN_address : ", TTKN_address, " BALANCE :", ethers.utils.formatEther(await TTKN_instance.balanceOf(ERC20Payer.address)));
+            
+            await TTKN_instance.allowance(ERC20Payer.address, Client.address);
+            await TTKN_instance.approve(Client.address, 500000000000);
+
+            // Why Allowance is still 0?
+            console.log("ALLOWANCE LIMIT IS :", ethers.utils.formatEther(await TTKN_instance.allowance(ERC20Payer.address, Client.address)));
+            
+            // generate Root of report
+            getReportRoot = F_submit(report);
+            await instance.connect(Deployer).submit(getReportRoot);
+        });
+
+
+        it("PayReporter(): Anyone can Pay the report, Paying in NATIVE ASSET",async function(){
+            await expect(instance.connect(Triager).payReporter(getReportRoot, NativeAsset, 9, { value: 9 }))
+        })
+
+        it("PayReporter(): Paying the report with ERC20 tokens",async function(){
+            // ERROR: revert ERC20: transfer amount exceeds balance
+            //await expect(instance.connect(Client).payReporter(getReportRoot, TTKN_instance.address, 100))
+        })
+
+        it("PayReporter(): While Paying the report with ERC20 tokens, Make sure `value` is 0",async function(){ // Native Asset  `value` should be 0 when paying with ERC20 tokens
+            // TODO
+        })
+
+        it("PayReporter(): Pay the report and check the final balance of the report", async function () {
+            Before_Balance = await instance.connect(Deployer).getBalance(getReportRoot, NativeAsset);
+            //console.log(ethers.utils.formatEther(Before_Balance));
+
+            // Paying in Native Asset , 9 wei
             await instance.connect(Client).payReporter(getReportRoot, NativeAsset, 9, { value: 9 })
 
             After_Balance = await instance.connect(Deployer).getBalance(getReportRoot, NativeAsset);
-            console.log(ethers.utils.formatEther(After_Balance));
+            //console.log(ethers.utils.formatEther(After_Balance));
 
             await expect(ethers.utils.formatEther(After_Balance)).to.equal('0.000000000000000009')
-
         })
-    })
 
-    describe("=> Testing PayReporter()", function () {
-        let getReportRoot;
+        it("PayReporter(): Paying with amount '0' should revert", async function () {
+            await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 0, { value: 9 })).revertedWith("Bug Report Notary: Amount must be larger than zero");
+        })
 
-        beforeEach(async () => {
-            getReportRoot = F_submit(report);
-            await instance.connect(Deployer).submit(getReportRoot);
-        });
+        it("PayReporter(): Paying with invalid payment/Token address should revert", async function () {
+            await expect(instance.connect(Client).payReporter(getReportRoot, 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, 1)).to.be.reverted;
+        })
 
-        it("should allow anyone to deposit a bounty payment in any er20 token or the native asset to a given report", async function () {
-            // Paying in Native
+        it("PayReporter(): Reports can get paid multiple times", async function () {
             await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 9, { value: 9 }));
-            
-
-            // Paying in ERC20 : I think, in order to send ERC20 , our msg.sender first need to have that tokens in account.
-            //await expect(instance.connect(Client).payReporter(getReportRoot, '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', 9));
-
-            After_Balance = await instance.connect(Deployer).getBalance(getReportRoot, '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
-            console.log(ethers.utils.formatEther(After_Balance));
-            // wrapped ether erc20, .deposit function ,  //  0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+            await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 100, { value: 100 }));
         })
 
-        it("Paying amount ZERO should revert by the require statement",async function(){
-            await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 0, { value: 9 })).to.be.reverted;
+        it("PayReporter(): No Underflow/Overflow on amount", async function () {
+            // TODO
         })
-
-        // it("Paying with invalid paymentToken address should revert",async function(){
-        //     await expect(instance.connect(Client).payReporter(getReportRoot, NativeAsset, 0, { value: 9 })).to.be.reverted;
-        // })
-
-         // TODOS
-        // 1. invalid contract addr check
-        // 2. check to not  pay 0,
-        // 3. we use wrapped ether , check to make sure  we are not using native asset value.
     })
 
 
-    describe("=> Testing Withdraw()", function () {
+    describe("===> Testing Withdraw()", function () {
         let reportRoot,
             reportAddress,
             salt,
@@ -335,28 +362,51 @@ describe("Notary Test Workflows", function () {
         beforeEach(async () => {
             [reportRoot, reportAddress, salt, merkleProofval] = F_withdraw(report, ReportKeys.reporter);
             await instance.connect(Deployer).submit(reportRoot);
-            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 100, { value: 100 })
         });
 
-        it("should allow multiple withdrawals", async function () {
+        it("Withdraw(): Anyone can perform a withdraw on report",async function(){ // but the amount will get `withdrawed` to the address which was provided along with the report. 
+            Initial_Balance = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 1000000, { value: 1000000 })
+
+            Before_Balance = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+            await expect(instance.connect(Client).withdraw(reportRoot, NativeAsset, 500, salt, reportAddress, merkleProofval)) // report should have now 0.0000000000000095 wei
+            After_Balance = ethers.utils.formatEther(await ethers.provider.getBalance(reportAddress));
+
+            // Why they both are same?
+            console.log(Initial_Balance,Before_Balance,After_Balance);
+        })
+
+        it("Withdraw(): multiple withdrawals on same report should work", async function () {
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 100, { value: 100 })
+
             await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 5, salt, reportAddress, merkleProofval))
-            //Balance = await instance.connect(Reporter).getBalance(reportRoot, NativeAsset);
             await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 5, salt, reportAddress, merkleProofval))
         })
 
-        it("no underflow/overflow should exist", async function () {
+        it("Withdraw(): Withdrawing unpaid Report should revert", async function () {
+            await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 5, salt, reportAddress, merkleProofval)).to.be.reverted;
+        })
+
+        it("Withdraw(): Should work with Withdrawal amount with '0'", async function () { // Since there's no check for amount 0, Transaction gonna utilize the gas only then
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 100, { value: 100 })
+            await expect(instance.connect(Deployer).withdraw(reportRoot, NativeAsset, 0, salt, reportAddress, merkleProofval));
+        })
+
+        it("Withdraw(): revert if withdrawing with invalid Payment/Token Address",async function(){
+            await instance.connect(Client).payReporter(reportRoot, NativeAsset, 100, { value: 100 })
+            await expect(instance.connect(Deployer).withdraw(reportRoot, 0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee, 10, salt, reportAddress, merkleProofval)).to.be.reverted;
+        })
+
+        it("Withdraw(): If smart contract balance <= amount input", async function(){
             // TODO
         })
 
-         // TODOS
-        // withdrawal reportRoot with different account caller check
-        // check if SC amount >= user wallet account 
-        // with invalid address, with native asset, ether wrapper.
-        // withdrawl if report is not paid
-        // withdraw if amount passwd is "0"
+        it("Withdraw(): No underflow/overflow on amount", async function () {
+            // TODO
+        })
     })
 
-    describe("=> updateReport()",function(){
+    describe("===> updateReport()",function(){
         let getReportRoot,
             key,
             commitment,
@@ -366,31 +416,43 @@ describe("Notary Test Workflows", function () {
         beforeEach(async () => {
             await instance.connect(Deployer).submit(F_submit(report));
             [getReportRoot, key, commitment] = F_attest(report, triagerAddress);
-            instance.connect(Deployer).attest(getReportRoot, key, commitment)
 
-            newStatusBitField = 00000001;
+            newStatusBitField = 00000001; // Bitnumbers
             Rkey = ReportKeys.report;
             attest_id = F_getAttestionID(report, triagerAddress, Rkey);
         })
 
-        it("update trying",async function(){
-            // https://github.com/immunefi-team/notary/blob/main/contracts/BugReportNotary.sol#L100
-            const check_exist = await instance.connect(Deployer).attestations[attest_id];
-            console.log(check_exist);
-
-            await instance.connect(Deployer).updateReport(getReportRoot,newStatusBitField);
-
-            val = await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress,0)
-            console.log("====>",val);
-            
-            // TODOS
-            // flag : 1 => false
-            //  update report  on non-exist root
-            // if  attest not perfommed, then no update 
+        it("updateReport(): Update the report with newStatusBitField",async function(){
+            instance.connect(Deployer).attest(getReportRoot, key, commitment)
+            await expect(instance.connect(Deployer).updateReport(getReportRoot, newStatusBitField));
         })
+
+        it("updateReport(): Update the report with newStatusBitField and check ReportStatus",async function(){
+            instance.connect(Deployer).attest(getReportRoot, key, commitment)
+
+            // false: report has been not updated
+            await expect(await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress, 0)).to.be.false;
+
+            // updated with newStatusBitField: replace '0' with '1'
+            await expect(await instance.connect(Deployer).updateReport(getReportRoot,newStatusBitField));
+
+            // true: report has been updated
+            await expect(await instance.connect(Deployer).reportHasStatus(getReportRoot, triagerAddress, 0)).to.be.true;
+        
+        })
+
+        it("updateReport(): Revert if updating the report with invalid StatusBitField", async function () {
+            instance.connect(Deployer).attest(getReportRoot, key, commitment)
+            await expect(instance.connect(Deployer).updateReport(getReportRoot, 0000000)).to.be.revertedWith("Bug Report Notary: Invalid status update");
+        })
+
+        it("updateReport(): Updating the non-attested report should revert", async function () {
+            await expect(instance.connect(Deployer).updateReport(F_submit(report), newStatusBitField)).to.be.revertedWith("Bug Report Notary: Report is unattested");
+        })
+
     })
 
-    describe("=> disclose()",function(){
+    describe("===> disclose()",function(){
         let getReportRoot,
             merkleProofval,
             commit,
@@ -405,38 +467,61 @@ describe("Notary Test Workflows", function () {
             await instance.connect(Deployer).submit(getReportRoot);
             
             [rr, kk, commit] = F_attest(report, triagerAddress)
-            await instance.connect(Deployer).attest(rr,kk,commit)
-
+            
             key = ReportKeys.report;
             [getReportRoot, salt, value, merkleProofval] = F_disclose(report,key);
         });
 
-        it("Disclosure Trying",async function(){
+        it("disclose(): Only operator can disclose the report", async function () {
+            await instance.connect(Deployer).attest(rr, kk, commit)
+
+            await expect(instance.connect(Client).disclose(getReportRoot, key, salt, value, merkleProofval))
+                .to.be.reverted;
+        })
+
+        it("disclose(): Disclosing the report",async function(){
+            await instance.connect(Deployer).attest(rr, kk, commit)
+
             await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
             .to.emit(instance,'ReportDisclosure')
             .withArgs(getReportRoot,key,value);
+        })
 
-            // TimeStampped validationfailed because we cann't attest the report which is  inthe  process of disclosure.
-            //const validate = await instance.connect(Deployer).validateAttestation(getReportRoot, Deployer.address, salt, value, merkleProofval);
+        // should fail?
+        it("disclose(): Doing Attest on Disclosed Report should revert",async function(){
+            await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
+                .to.emit(instance, 'ReportDisclosure')
+                .withArgs(getReportRoot, key, value);
+
+            await instance.connect(Deployer).attest(getReportRoot, key, commit)
+        })
+
+        // should fail?
+        it("disclose(): Doing Update on Disclosed Report should revert", async function () {
+            await instance.connect(Deployer).attest(getReportRoot, key, commit)
+
+            await expect(instance.connect(Deployer).disclose(getReportRoot, key, salt, value, merkleProofval))
+                .to.emit(instance, 'ReportDisclosure')
+                .withArgs(getReportRoot, key, value);
+
+            await expect(instance.connect(Deployer).updateReport(getReportRoot, 00000001));
         })
     })
 
 
-    describe("=> upgradeToAndCall()", function () {
-        it("Upgrading the current proxy", async function () {
-            // current proxy address, Update Smart Contract Reference, New Deployer address
+    describe("===> upgradeProxy()", function () {
+        it("upgradeProxy(): Upgrading the current proxy", async function () {
+                                      //[current proxy address, Updated Smart Contract Reference, New Deployer address]
             await upgrades.upgradeProxy(instance.address, Notary, { args: Deployer.address, unsafeAllow: ['delegatecall'] })
 
         })
 
-        it("Only ProxyOwner should able to upgrade the contract", async function () {
+        it("upgradeProxy(): Only ProxyOwner should able to upgrade the contract", async function () {
             await upgrades.admin.transferProxyAdminOwnership(instance.address, Client.address);
 
             await expect(upgrades.upgradeProxy(instance.address, Notary, { unsafeAllow: ['delegatecall'] }))
                 .to.be.revertedWith("caller is not the owner");
         })
     })
-
-
 
 });
