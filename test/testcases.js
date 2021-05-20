@@ -170,29 +170,49 @@ function F_withdraw(report, key) {
 
 // [!] TESTING SETUP
 
-describe("Notary Test Workflows", function () {
-    let Notary, instance;
+describe("Notary Test Workflows",async function () {
+    let TestTokenERC20,
+        tkk_instance;
+
+    let Notary,
+        instance;
 
     // addresses to
-    let Deployer,
+
+    let ERC20Payer,
+        Deployer,
         Triager,
         Reporter,
-        ERC20Payer,
         Client;
 
     let salt, report, triagerAddress
 
     beforeEach(async () => {
-        [Deployer, Reporter, Triager, Client, ERC20Payer] = await ethers.getSigners();
+        // Mock TestToken Contract - Initialization
+        TestTokenERC20 = await ethers.getContractFactory("TestToken");
+
+        [ERC20Payer, Deployer, Triager, Reporter, Client] = await ethers.getSigners();
+
+        tkk_instance = await TestTokenERC20.deploy(ERC20Payer.address);
+
+        // Notary Contract - Initialization
 
         Notary = await ethers.getContractFactory("BugReportNotary");
         instance = await upgrades.deployProxy(Notary, [Deployer.address], { unsafeAllow: ['delegatecall'] });
 
+        // Adding to `Notary contract instance` to TestToken SC `Allowance`
+        await tkk_instance.allowance(ERC20Payer.address, instance.address);
+        await tkk_instance.approve(instance.address, 500000000000);
+        // console.log(ethers.utils.formatEther(await tkk_instance.allowance(ERC20Payer.address, instance.address))) // returns the allowance (uint256)amount
+
+        // console.log("ERC20Payer :", await ERC20Payer.address, "Client :", await Client.address);
+        // console.log("TTKN_address : ", await tkk_instance.address, "ERC20Payer BALANCE :", ethers.utils.formatEther(await tkk_instance.balanceOf(ERC20Payer.address)))
+
+
+        // Report
         salt = generateRandomSalt();
-        
-        // Note: Report PaymentWalletAddress is Deployer.address 
         report = { "id": 1, "salts": salt, "paymentWalletAddress": Deployer.address, "project": "0xbf971d4360414c84ea06783d0ea51e69035ee526" }
-        triagerAddress = Deployer.address;
+        triagerAddress = Deployer.address; // Note: Report PaymentWalletAddress is also a Deployer.address 
     });
 
 
@@ -221,9 +241,9 @@ describe("Notary Test Workflows", function () {
         })
 
         it("submit(): Only Accepts a report root of merkle tree constructed from the report", async function () {
-            await expect(instance.connect(Deployer).submit(getReportRoot))
-            //.to.emit(instance, "ReportSubmitted").
-            //withArgs(getReportRoot,ethers.block.timestamp); // TBA, How to generate current block timestamp?
+            await expect(await instance.connect(Deployer).submit(getReportRoot))
+            // .to.emit(instance, "ReportSubmitted").
+            //     withArgs(getReportRoot, ethers.provider.getBlockNumber().timestamp); // TBA, How to generate current block timestamp?
         })
 
         it("submit(): Revert on submitting same report root multiple times",async function(){
@@ -282,26 +302,10 @@ describe("Notary Test Workflows", function () {
     })
 
     describe("===> PayReporter()", function () {
-        let getReportRoot,
-            TestTokenERC20,
-            TTKN_address,
-            TTKN_instance;
+        let getReportRoot;
 
         // For testing "Paying the report with ERC20 tokens", We are deploying `TestToken` Mock
         beforeEach(async () => {
-            // Mock initalization
-            TestTokenERC20 = await ethers.getContractFactory("TestToken");
-            TTKN_instance = await TestTokenERC20.deploy(ERC20Payer.address);
-            TTKN_address = await TTKN_instance.address;
-
-            console.log("TTKN_address : ", TTKN_address, " BALANCE :", ethers.utils.formatEther(await TTKN_instance.balanceOf(ERC20Payer.address)));
-            
-            await TTKN_instance.allowance(ERC20Payer.address, Client.address);
-            await TTKN_instance.approve(Client.address, 500000000000);
-
-            // Why Allowance is still 0?
-            console.log("ALLOWANCE LIMIT IS :", ethers.utils.formatEther(await TTKN_instance.allowance(ERC20Payer.address, Client.address)));
-            
             // generate Root of report
             getReportRoot = F_submit(report);
             await instance.connect(Deployer).submit(getReportRoot);
@@ -313,12 +317,12 @@ describe("Notary Test Workflows", function () {
         })
 
         it("PayReporter(): Paying the report with ERC20 tokens",async function(){
-            // ERROR: revert ERC20: transfer amount exceeds balance
-            //await expect(instance.connect(Client).payReporter(getReportRoot, TTKN_instance.address, 100))
+            await expect(instance.connect(ERC20Payer).payReporter(getReportRoot, tkk_instance.address, 133337))
+            await expect(ethers.utils.formatEther(await instance.connect(Deployer).getBalance(getReportRoot, tkk_instance.address))).to.be.equal('0.000000000000133337');
         })
 
-        it("PayReporter(): While Paying the report with ERC20 tokens, Make sure `value` is 0",async function(){ // Native Asset  `value` should be 0 when paying with ERC20 tokens
-            // TODO
+        it("PayReporter(): While Paying the report with ERC20 tokens,If native asset `value` sent then revert",async function(){ // Native Asset  `value` should be 0 when paying with ERC20 tokens
+            await expect(instance.connect(ERC20Payer).payReporter(getReportRoot, tkk_instance.address, 133337, { value: 100 })).to.be.revertedWith("Bug Report Notary: Native asset sent for ERC20 payment");
         })
 
         it("PayReporter(): Pay the report and check the final balance of the report", async function () {
@@ -374,6 +378,15 @@ describe("Notary Test Workflows", function () {
 
             // Why they both are same?
             console.log(Initial_Balance,Before_Balance,After_Balance);
+        })
+
+        it("Withdraw(): Withdraw the Custom ERC20 Balance from the report",async function(){
+            console.log(ethers.utils.formatEther(await tkk_instance.balanceOf(reportAddress)));
+            await expect(instance.connect(ERC20Payer).payReporter(reportRoot, tkk_instance.address, 133337))
+
+            console.log(ethers.utils.formatEther(await tkk_instance.balanceOf(reportAddress)));
+            await expect(instance.connect(Deployer).withdraw(reportRoot, tkk_instance.address, 10000, salt, reportAddress, merkleProofval))
+            console.log(ethers.utils.formatEther(await tkk_instance.balanceOf(reportAddress)));
         })
 
         it("Withdraw(): multiple withdrawals on same report should work", async function () {
@@ -523,5 +536,7 @@ describe("Notary Test Workflows", function () {
                 .to.be.revertedWith("caller is not the owner");
         })
     })
+
+
 
 });
