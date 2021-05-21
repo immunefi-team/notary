@@ -137,10 +137,147 @@
           }
         }
       }
+    },
+    "90a97b061815ed6d3e33206f9e70b8ab463b04a7c0a92f3bb300d753c4240bbd": {
+      "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+      "txHash": "0x6667ac2cb7f0344c95e2d38056921588a4719743ecdfde97c5a7009d44af61d1",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:23"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts/proxy/utils/Initializable.sol:28"
+          },
+          {
+            "contract": "AccessControl",
+            "label": "_roles",
+            "type": "t_mapping(t_bytes32,t_struct(RoleData)57_storage)",
+            "src": "@openzeppelin/contracts/access/AccessControl.sol:64"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "reports",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)",
+            "src": "contracts/BugReportNotary.sol:37"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "reportStatuses",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)",
+            "src": "contracts/BugReportNotary.sol:38"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "disclosures",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)",
+            "src": "contracts/BugReportNotary.sol:39"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "attestations",
+            "type": "t_mapping(t_bytes32,t_struct(Attestation)2251_storage)",
+            "src": "contracts/BugReportNotary.sol:40"
+          },
+          {
+            "contract": "BugReportNotary",
+            "label": "balances",
+            "type": "t_mapping(t_bytes32,t_uint256)",
+            "src": "contracts/BugReportNotary.sol:41"
+          }
+        ],
+        "types": {
+          "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)": {
+            "label": "mapping(bytes32 => struct BugReportNotary.TimestampPadded)"
+          },
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_struct(TimestampPadded)2245_storage": {
+            "label": "struct BugReportNotary.TimestampPadded",
+            "members": [
+              {
+                "label": "flags",
+                "type": "t_uint8"
+              },
+              {
+                "label": "_reserved",
+                "type": "t_uint184"
+              },
+              {
+                "label": "timestamp",
+                "type": "t_uint64"
+              }
+            ]
+          },
+          "t_uint8": {
+            "label": "uint8"
+          },
+          "t_uint184": {
+            "label": "uint184"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          },
+          "t_mapping(t_bytes32,t_struct(Attestation)2251_storage)": {
+            "label": "mapping(bytes32 => struct BugReportNotary.Attestation)"
+          },
+          "t_struct(Attestation)2251_storage": {
+            "label": "struct BugReportNotary.Attestation",
+            "members": [
+              {
+                "label": "timestamp",
+                "type": "t_struct(TimestampPadded)2245_storage"
+              },
+              {
+                "label": "commitment",
+                "type": "t_bytes32"
+              }
+            ]
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_bytes32,t_struct(RoleData)57_storage)": {
+            "label": "mapping(bytes32 => struct AccessControl.RoleData)"
+          },
+          "t_struct(RoleData)57_storage": {
+            "label": "struct AccessControl.RoleData",
+            "members": [
+              {
+                "label": "members",
+                "type": "t_mapping(t_address,t_bool)"
+              },
+              {
+                "label": "adminRole",
+                "type": "t_bytes32"
+              }
+            ]
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        }
+      }
     }
   },
   "admin": {
-    "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-    "txHash": "0x77fd8c58111e1ff120ca4e285e1e2904f923b64b33f16580f986d100fc661ae7"
+    "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+    "txHash": "0x5d500b3fe01077b0d919ebc4ea2539ae88253137ec5696d0cb53fd1d4aa884da"
   }
 }
