@@ -76,6 +76,7 @@ contract BugReportNotary is Initializable, AccessControl {
 
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0, "Bug Report Notary: Invalid commitment");
+    require(reports[reportRoot].timestamp != 0, "Bug Report Notary: Report not yet submitted");
     Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
     require(attestation.timestamp.timestamp == 0 && attestation.commitment == 0x0, "Bug Report Notary: Attestation already submitted");
     uint64 timestamp = block.timestamp.toUint64();
@@ -97,7 +98,7 @@ contract BugReportNotary is Initializable, AccessControl {
   }
 
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
-    require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0. "Bug Report Notary: Report is unattested");
+    require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0, "Bug Report Notary: Report is unattested");
     require(newStatusBitField != 0, "Bug Report Notary: Invalid status update");
     uint64 timestamp = block.timestamp.toUint64();
     reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, timestamp);
