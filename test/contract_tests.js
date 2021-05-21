@@ -295,10 +295,9 @@ describe("Notary Test Workflows",async function () {
             await expect(instance.connect(Triager).attest(getReportRoot, key, random_bytes_ZERO)).revertedWith("Bug Report Notary: Invalid commitment");
         })
 
-        // [BUG] should fail
         it("Attest(): Attest on non-exisiting report should revert",async function(){
             [getReportRoot, key, commitment] = F_attest(report2,Reporter2.address);
-            await expect(instance.connect(Triager).attest(getReportRoot,key,commitment));
+            await expect(instance.connect(Triager).attest(getReportRoot, key, commitment)).revertedWith("Bug Report Notary: Report not yet submitted");
         })
 
     })
@@ -610,11 +609,20 @@ describe("Notary Test Workflows",async function () {
 
         // Bug Report Notary: Invalid timestamp
         // TimeStampped validation failed because we cann't attest the report which is in the process of disclosure of `ATTESTATION_DELAY` i.e 24 hours
-        it("validateAttestation(): Validate attestation after disclosing the report", async function () {
+        it("validateAttestation(): Validating the attestation on disclosed report before ATTESTATION_DELAY timestamp should revert", async function () {
             await instance.connect(Triager).attest(getReportRoot, kk, commit)
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
             await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval)).to.be.revertedWith("Bug Report Notary: Invalid timestamp");
         })
+
+        it("validateAttestation(): Validating the attestation on disclosed report after ATTESTATION_DELAY", async function () {
+            await instance.connect(Triager).attest(getReportRoot, kk, commit)
+            await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
+
+            // TODO: 24 hours + timestamp and then check (check: ethers.js)
+            //await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval));
+        })
+
     });
 
     describe("===> initialize()", function () {

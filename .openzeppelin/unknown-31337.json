@@ -138,9 +138,9 @@
         }
       }
     },
-    "90a97b061815ed6d3e33206f9e70b8ab463b04a7c0a92f3bb300d753c4240bbd": {
+    "f449c2a643387162100138f260d0be38556573dfdf3eb6e3b31be9cba9f8c75d": {
       "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-      "txHash": "0x6667ac2cb7f0344c95e2d38056921588a4719743ecdfde97c5a7009d44af61d1",
+      "txHash": "0x5a712a5aacf6ac60a82be73fb4a8e1f627373d4a234d05b10619a41296314036",
       "layout": {
         "storage": [
           {
@@ -164,25 +164,25 @@
           {
             "contract": "BugReportNotary",
             "label": "reports",
-            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)1713_storage)",
             "src": "contracts/BugReportNotary.sol:37"
           },
           {
             "contract": "BugReportNotary",
             "label": "reportStatuses",
-            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)1713_storage)",
             "src": "contracts/BugReportNotary.sol:38"
           },
           {
             "contract": "BugReportNotary",
             "label": "disclosures",
-            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)1713_storage)",
             "src": "contracts/BugReportNotary.sol:39"
           },
           {
             "contract": "BugReportNotary",
             "label": "attestations",
-            "type": "t_mapping(t_bytes32,t_struct(Attestation)2251_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(Attestation)1719_storage)",
             "src": "contracts/BugReportNotary.sol:40"
           },
           {
@@ -193,13 +193,13 @@
           }
         ],
         "types": {
-          "t_mapping(t_bytes32,t_struct(TimestampPadded)2245_storage)": {
+          "t_mapping(t_bytes32,t_struct(TimestampPadded)1713_storage)": {
             "label": "mapping(bytes32 => struct BugReportNotary.TimestampPadded)"
           },
           "t_bytes32": {
             "label": "bytes32"
           },
-          "t_struct(TimestampPadded)2245_storage": {
+          "t_struct(TimestampPadded)1713_storage": {
             "label": "struct BugReportNotary.TimestampPadded",
             "members": [
               {
@@ -225,15 +225,15 @@
           "t_uint64": {
             "label": "uint64"
           },
-          "t_mapping(t_bytes32,t_struct(Attestation)2251_storage)": {
+          "t_mapping(t_bytes32,t_struct(Attestation)1719_storage)": {
             "label": "mapping(bytes32 => struct BugReportNotary.Attestation)"
           },
-          "t_struct(Attestation)2251_storage": {
+          "t_struct(Attestation)1719_storage": {
             "label": "struct BugReportNotary.Attestation",
             "members": [
               {
                 "label": "timestamp",
-                "type": "t_struct(TimestampPadded)2245_storage"
+                "type": "t_struct(TimestampPadded)1713_storage"
               },
               {
                 "label": "commitment",
