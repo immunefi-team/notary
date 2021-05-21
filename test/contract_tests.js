@@ -216,21 +216,21 @@ describe("Notary Test Workflows",async function () {
         Notary = await ethers.getContractFactory("BugReportNotary");
         instance = await upgrades.deployProxy(Notary, [Deployer.address], { unsafeAllow: ['delegatecall'] });
 
-        // Adding to `Notary contract instance` to TestToken SC `Allowance`
+        // Adding to `ERC20Payer` address to TestToken SC `Allowance`
         await tkk_instance.allowance(ERC20Payer.address, instance.address);
         await tkk_instance.approve(instance.address, ethers.utils.parseUnits("100000", "ether")); // ether format for 100000 tokens
         
-        //console.log(ethers.utils.formatEther(await tkk_instance.allowance(ERC20Payer.address, instance.address))) // returns the allowance (uint256)amount
+        // console.log(ethers.utils.formatEther(await tkk_instance.allowance(ERC20Payer.address, instance.address))) // returns the allowance (uint256)amount
         // console.log("ERC20Payer :", await ERC20Payer.address, "Client :", await Client.address);
         // console.log("TTKN_address : ", await tkk_instance.address, "ERC20Payer BALANCE :", ethers.utils.formatEther(await tkk_instance.balanceOf(ERC20Payer.address)))
 
-        // Report
+        // Constant Reports
         salt = generateRandomSalt();
         report1 = { "id": 1, "salts": salt, "paymentWalletAddress": Reporter1.address, "project": "0xbf971d4360414c84ea06783d0ea51e69035ee526" }
         report2 = { "id": 2, "salts": salt, "paymentWalletAddress": Reporter2.address, "project": "0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98" }
 
-        // Current `Deployer` is the only operator, To keep deployer seperate and to use Deployer only for proxy upgrades tasks.
-        // We gonna grant `OPERATOR` role to `Triager` who will be responsible for all `OPERATOR` operations.
+        // `Deployer` is the only operator on deployProxy,To keep Deployer seperate for proxy upgrades tasks \ 
+        // Assigning `OPERATOR` role to `Triager` who will be responsible for all `OPERATOR` operations on contract functions.
         await instance.connect(Deployer).grantRole(operator_keccak, Triager.address);
     });
 
@@ -252,9 +252,9 @@ describe("Notary Test Workflows",async function () {
         })
 
         it("submit(): Only Accepts a report root format of merkle tree constructed from the report", async function () {
-            //  should pass
+            //  accept
             await expect(instance.connect(Triager).submit(random_bytes_RAND));
-            // should fail
+            //  reject
             await expect(instance.connect(Triager).submit(address_ZERO)).to.be.reverted;
         })
 
@@ -295,7 +295,7 @@ describe("Notary Test Workflows",async function () {
             await expect(instance.connect(Triager).attest(getReportRoot, key, random_bytes_ZERO)).revertedWith("Bug Report Notary: Invalid commitment");
         })
 
-        // should fail
+        // [BUG] should fail
         it("Attest(): Attest on non-exisiting report should revert",async function(){
             [getReportRoot, key, commitment] = F_attest(report2,Reporter2.address);
             await expect(instance.connect(Triager).attest(getReportRoot,key,commitment));
@@ -320,8 +320,7 @@ describe("Notary Test Workflows",async function () {
 
     describe("===> PayReporter()", function () {
         let getReportRoot;
-
-        // For testing "Paying the report with ERC20 tokens", We are deploying `TestToken` Mock
+        
         beforeEach(async () => {
             // generate Root of report
             getReportRoot = F_SUBMIT(report1);
@@ -485,7 +484,7 @@ describe("Notary Test Workflows",async function () {
         it("updateReport(): Update the report with newStatusBitField and check ReportStatus",async function(){
             instance.connect(Triager).attest(getReportRoot, key, commitment)
 
-             // 0 here is to get the `first` bit from 8 bits , i.e 1 byte = 8 bits, since boolean use only first bit
+             // Bit Fields binary: 0 here is to get the `first` bit from 8 bits , i.e 1 byte = 8 bits, since boolean use only first bit
 
             // false: report has not been updated
             await expect(await instance.connect(Triager).reportHasStatus(getReportRoot, Triager.address, 0)).to.be.false;
@@ -549,7 +548,7 @@ describe("Notary Test Workflows",async function () {
             .withArgs(getReportRoot,key,value);
         })
 
-        // should fail?
+        // [BUG] should fail
         it("disclose(): Doing Attest on Disclosed Report should revert",async function(){
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
                 .to.emit(instance, 'ReportDisclosure')
@@ -558,7 +557,7 @@ describe("Notary Test Workflows",async function () {
             await instance.connect(Triager).attest(getReportRoot, key, commit)
         })
 
-        // should fail?
+        // [BUG] should fail
         it("disclose(): Doing Update on Disclosed Report should revert", async function () {
             await instance.connect(Triager).attest(getReportRoot, key, commit)
             
@@ -575,7 +574,7 @@ describe("Notary Test Workflows",async function () {
             //console.log("STATUS : ", await instance.connect(Triager).reportHasStatus(getReportRoot, Triager.address, 0))
         })
 
-        // should fail?
+        //[BUG] should fail
         it("disclose(): Disclosing the already disclosed report should revert", async function () {
             await instance.connect(Triager).attest(rr, kk, commit)
 
@@ -610,7 +609,7 @@ describe("Notary Test Workflows",async function () {
         });
 
         // Bug Report Notary: Invalid timestamp
-        // TimeStampped validationfailed because we cann't attest the report which is  in the  process of disclosure of `ATTESTATION_DELAY`
+        // TimeStampped validation failed because we cann't attest the report which is in the process of disclosure of `ATTESTATION_DELAY` i.e 24 hours
         it("validateAttestation(): Validate attestation after disclosing the report", async function () {
             await instance.connect(Triager).attest(getReportRoot, kk, commit)
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
@@ -626,7 +625,7 @@ describe("Notary Test Workflows",async function () {
         })
 
         it("intialize() : Triager(OPERATOR) shouldn't able to call intialize", async function () {
-            // Since contract is already deployed, he wouldn't  able to re-intialize
+            // Since contract is already deployed, User wouldn't  able to re-intialize
             await expect(instance.connect(Triager).initialize(Client.address))
                 .to.be.reverted;
         })
