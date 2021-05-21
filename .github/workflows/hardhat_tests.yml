@@ -10,5 +10,4 @@ jobs:
         with:
           node-version: '15'
       - run: npm install
-      - run: npm i npx
-      - run: npx hardhat test test/contract_tests.js
+      - run: npx hardhat --config dev_hardhat.config.js test/contract_tests.js
