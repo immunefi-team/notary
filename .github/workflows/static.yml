@@ -1,4 +1,8 @@
-on: [push]
+#on: [push] Silence it until slither fixes the bug.
+on:
+  push:
+    branches:
+      - non-exist
 
 jobs:
   main_job:
