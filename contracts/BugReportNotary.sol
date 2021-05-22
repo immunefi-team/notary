@@ -1,27 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 contract BugReportNotary is Initializable, AccessControl {
 
-  using SafeERC20 for IERC20;
-  using Address for address payable;
   using SafeCast for uint256;
 
-  address public constant NATIVE_ASSET = address(0x0); // mock address that represents the native asset of the chain
   bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
   uint256 private constant SEPARATOR_LEAF = 0;
   uint256 private constant SEPARATOR_ATTESTATION = 1;
-  string private constant KEY_REPORTER = "reporter";
-  string private constant KEY_REPORT = "report";
-  uint64 private constant ATTESTATION_DELAY = 1 days;
+  string public constant KEY_REPORT = "report";
+  uint64 public constant ATTESTATION_DELAY = 1 days;
 
   struct TimestampPadded {
     uint8 flags;
@@ -38,15 +31,11 @@ contract BugReportNotary is Initializable, AccessControl {
   mapping (bytes32 => TimestampPadded) public reportStatuses; // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
   mapping (bytes32 => TimestampPadded) public disclosures; // keccak256(report root, key) => block.timestamp
   mapping (bytes32 => Attestation) public attestations; // keccak256(report root, triager address, key) => Attestation
-  mapping (bytes32 => uint256) public balances; // keccak256(report root, payment token address) => balance
 
   event ReportSubmitted(bytes32 indexed reportRoot, uint64 timestamp);
   event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint8 newStatusBitField, uint64 timestamp);
   event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes value);
   event ReportAttestation(address indexed triager, bytes32 indexed reportRoot, string indexed key, uint64 timestamp);
-
-  event Payment(bytes32 indexed reportRoot, address indexed from, address paymentToken, uint256 amount);
-  event Withdrawal(bytes32 indexed reportRoot, address indexed to, address paymentToken, uint256 amount);
 
   //ACCESS CONTROL
   function initialize(address initAdmin) external initializer {
@@ -56,9 +45,10 @@ contract BugReportNotary is Initializable, AccessControl {
 
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
-    require(reports[reportRoot].timestamp == 0, "Bug Report Notary: Report already submitted");
+    TimestampPadded storage timestamp_padded = reports[reportRoot];
+    require(timestamp_padded.timestamp == 0, "Bug Report Notary: Report already submitted");
     uint64 timestamp = block.timestamp.toUint64();
-    reports[reportRoot] = TimestampPadded(0, 0, timestamp);
+    timestamp_padded = TimestampPadded(0, 0, timestamp);
     emit ReportSubmitted(reportRoot, timestamp);
   }
 
@@ -122,11 +112,12 @@ contract BugReportNotary is Initializable, AccessControl {
 
   function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof)
    external onlyRole(OPERATOR_ROLE) {
-    TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
-    require(timestamp.timestamp == 0, "Bug Report Notary: Key already disclosed for report");
     _checkProof(reportRoot, key, salt, value, merkleProof);
-    timestamp.timestamp = block.timestamp.toUint64();
-    emit ReportDisclosure(reportRoot, key, value);
+    TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
+    if (timestamp.timestamp == 0) {
+      timestamp.timestamp = block.timestamp.toUint64();
+      emit ReportDisclosure(reportRoot, key, value);
+    }
   }
 
   function _checkProof(bytes32 reportRoot, string memory key, bytes32 salt, bytes memory value, bytes32[] calldata merkleProof) internal view {
@@ -135,44 +126,4 @@ contract BugReportNotary is Initializable, AccessControl {
     require(MerkleProof.verify(merkleProof, reportRoot, leafHash), "Bug Report Notary: Merkle proof failed.");
   }
 
-  function getBalance(bytes32 reportRoot, address paymentToken) public view returns (uint256) {
-    return balances[_getBalanceID(reportRoot, paymentToken)];
-  }
-
-  function _getBalanceID(bytes32 reportRoot, address paymentToken) internal pure returns (bytes32) {
-    return keccak256(abi.encode(reportRoot, paymentToken));
-  }
-
-  function _modifyBalance(bytes32 balanceID, uint256 newAmount) internal {
-    balances[balanceID] = newAmount;
-  }
-
-  function payReporter(bytes32 reportRoot, address paymentToken, uint256 amount) external payable {
-    require(amount > 0, "Bug Report Notary: Amount must be larger than zero");
-    bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
-    uint256 currBalance = balances[balanceID];
-    _modifyBalance(balanceID, currBalance + amount);
-    emit Payment(reportRoot, msg.sender, paymentToken, amount);
-    if (paymentToken == NATIVE_ASSET) {
-      require(msg.value == amount, "Bug Report Notary: Insufficient funds sent");
-    } else {
-      require(msg.value == 0, "Bug Report Notary: Native asset sent for ERC20 payment");
-      IERC20(paymentToken).safeTransferFrom(msg.sender, address(this), amount);
-    }
-  }
-
-  // Note: future versions may only allow EOAs to call this fn
-  function withdraw(bytes32 reportRoot, address paymentToken, uint256 amount, bytes32 salt, address reporter, bytes32[] calldata merkleProof)
-   external {
-    bytes32 balanceID = _getBalanceID(reportRoot, paymentToken);
-    uint256 currBalance = balances[balanceID];
-    _checkProof(reportRoot, KEY_REPORTER, salt, abi.encode(reporter), merkleProof);
-    _modifyBalance(balanceID, currBalance - amount);
-    emit Withdrawal(reportRoot, reporter, paymentToken, amount);
-    if (paymentToken == NATIVE_ASSET) {
-      payable(reporter).sendValue(amount);
-    } else {
-      IERC20(paymentToken).safeTransfer(reporter, amount);
-    }
-  }
 }
