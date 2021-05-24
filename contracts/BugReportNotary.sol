@@ -6,7 +6,9 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-contract BugReportNotary is Initializable, AccessControl {
+import "./interfaces/INotary.sol"
+
+contract BugReportNotary is Initializable, AccessControl, INotary {
 
   using SafeCast for uint256;
 
@@ -16,26 +18,10 @@ contract BugReportNotary is Initializable, AccessControl {
   string public constant KEY_REPORT = "report";
   uint64 public constant ATTESTATION_DELAY = 1 days;
 
-  struct TimestampPadded {
-    uint8 flags;
-    uint184 _reserved;
-    uint64 timestamp;
-  }
-
-  struct Attestation {
-    TimestampPadded timestamp;
-    bytes32 commitment;
-  }
-
-  mapping (bytes32 => TimestampPadded) public reports; // report root => block.timestamp
-  mapping (bytes32 => TimestampPadded) public reportStatuses; // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
-  mapping (bytes32 => TimestampPadded) public disclosures; // keccak256(report root, key) => block.timestamp
-  mapping (bytes32 => Attestation) public attestations; // keccak256(report root, triager address, key) => Attestation
-
-  event ReportSubmitted(bytes32 indexed reportRoot, uint64 timestamp);
-  event ReportUpdated(address indexed triager, bytes32 indexed reportRoot, uint8 newStatusBitField, uint64 timestamp);
-  event ReportDisclosure(bytes32 indexed reportRoot, string indexed key, bytes value);
-  event ReportAttestation(address indexed triager, bytes32 indexed reportRoot, string indexed key, uint64 timestamp);
+  mapping (bytes32 => TimestampPadded) public reports;
+  mapping (bytes32 => TimestampPadded) public reportStatuses;
+  mapping (bytes32 => TimestampPadded) public disclosures;
+  mapping (bytes32 => Attestation) public attestations;
 
   //ACCESS CONTROL
   function initialize(address initAdmin) external initializer {
@@ -125,5 +111,4 @@ contract BugReportNotary is Initializable, AccessControl {
     bytes32 leafHash = keccak256(bytes.concat(abi.encode(SEPARATOR_LEAF, key, salt), value));
     require(MerkleProof.verify(merkleProof, reportRoot, leafHash), "Bug Report Notary: Merkle proof failed.");
   }
-
 }
