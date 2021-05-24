@@ -4,15 +4,30 @@ const { expect } = require("chai");
 const { upgrades, ethers } = require("hardhat");
 const { MerkleTree } = require('merkletreejs');
 const abiCoder = ethers.utils.defaultAbiCoder; //An AbiCoder created when the library is imported which is used by the Interface.
+const { ReportKeys, generateRandomSalt } = require('./Utils/Helpers');
 
-// [!] CONSTANTS
+// Merkle Helpers
+const { generateLeafData,
+    generateLeaf,
+    generateReportRoot,
+    generateReporterLeaf,
+    generateReportNumberLeaf,
+    generateProjectLeaf,
+    generateReportLeaf,
+    getLeafGenerator,
+    generateReportMerkleTree,
+    merkleProof,
+    generateCommitment } = require("./Utils/Merkle");
 
-const ReportKeys = {
-    report: "report",
-    reporter: "reporter",
-    reportNumber: "immunefi report number",
-    project: "project",
-}
+// Function Arguments Generator
+const { F_SUBMIT,
+    F_attest,
+    F_disclose,
+    F_getAttestionID,
+    F_withdraw } = require("./Utils/Generators");
+
+
+// [!] CONSTANTS KEYWORDS
 
 const operator_keccak = keccak256("OPERATOR_ROLE");
 const NativeAsset = '0x0000000000000000000000000000000000000000' //  ETH on mainet, XDAI on paonetwork
@@ -24,154 +39,6 @@ const random_bytes_ZERO = ethers.utils.formatBytes32String(0);
 const ONE_ETHER_FORMAT = ethers.utils.parseUnits("1", "ether");
 const HALF_ETHER_FORMAT = ethers.utils.parseUnits("0.5", "ether");
 
-// [!] Merkle Helper Functions
-
-function generateLeafData(key, salt, value) {
-    return ethers.utils.hexConcat([abiCoder.encode(["uint256", "string", "bytes32"], [0, key, salt]), value]);
-}
-
-function generateLeaf(key, salt, value) {
-    return keccak256(generateLeafData(key, salt, value));
-}
-
-function generateReportRoot(report) {
-    const tree = generateReportMerkleTree(report);
-    //console.log(tree.getHexLeaves())
-    return tree.getHexRoot();
-}
-
-function generateReporterLeaf(report) {
-    const key = ReportKeys.reporter;
-    const salt = report.salts;
-    const value = abiCoder.encode(["address"], [report.paymentWalletAddress]);
-
-    return generateLeaf(key, salt, value);
-}
-
-function generateReportNumberLeaf(report) {
-    const key = ReportKeys.reportNumber;
-    const salt = report.salts;
-    const value = abiCoder.encode(["uint256"], [report.id]);
-
-    return generateLeaf(key, salt, value);
-}
-
-function generateProjectLeaf(report) {
-    const key = ReportKeys.project;
-    const salt = report.salts;
-    const value = abiCoder.encode(["bytes"], [report.project]);
-
-    return generateLeaf(key, salt, value);
-}
-
-function generateReportLeaf(report) {
-    const key = ReportKeys.report;
-    const salt = report.salts;
-    const value = abiCoder.encode(["bytes"], [report.project]);
-
-    return generateLeaf(key, salt, value);
-}
-
-function getLeafGenerator(key) {
-    switch (key) {
-        case ReportKeys.project:
-            return generateProjectLeaf;
-        case ReportKeys.report:
-            return generateReportLeaf;
-        case ReportKeys.reportNumber:
-            return generateReportNumberLeaf;
-        case ReportKeys.reporter:
-            return generateReporterLeaf;
-        default:
-            console.log("Unexpected-Key in LeafGenerator");
-    }
-}
-
-function generateReportMerkleTree(report) {
-    const reportNumberLeaf = generateReportNumberLeaf(report);
-
-    const reporterLeaf = generateReporterLeaf(report);
-    const projectNameLeaf = generateProjectLeaf(report);
-    const reportLeaf = generateReportLeaf(report);
-
-    return new MerkleTree([reportNumberLeaf, reporterLeaf, projectNameLeaf, reportLeaf], keccak256, { sort: true });
-}
-
-
-function merkleProof(report, key) {
-    const leafGenerator = getLeafGenerator(key);
-    const leaf = leafGenerator(report);
-    const tree = generateReportMerkleTree(report);
-    return tree.getHexProof(leaf);
-}
-
-// [!] Helper Functions
-
-function generateRandomSalt() {
-    const buf = ethers.utils.randomBytes(32);
-    salt = ethers.utils.hexlify(buf);
-    return salt;
-}
-
-
-function generateCommitment(report, triagerAddr) {
-    const key = ReportKeys.report;
-    const salt = report.salts;
-
-    const value = abiCoder.encode(["bytes"], [report.project]);
-
-    const attestationData = ethers.utils.hexConcat([
-        abiCoder.encode(["uint256", "address", "string", "bytes32"], [1, triagerAddr, key, salt]),
-        value,
-    ]);
-
-    return keccak256(attestationData);
-}
-
-
-// [!] SMART CONTRACT FUNCTION GENERATORS to use them in mocha test cases:
-// useful to generate arguments for functions.
-
-async function F_SUBMIT(report) {
-    const reportRoot = generateReportRoot(report);
-    return reportRoot;
-}
-
-function F_attest(report, triagerAddr) {
-    const reportRoot = generateReportRoot(report);
-    const key = ReportKeys.report;
-    const commitment = generateCommitment(report, triagerAddr);
-
-    return [reportRoot, key, commitment];
-}
-
-function F_disclose(report, key) {
-    const reportRoot = generateReportRoot(report);
-    const salt = report.salts;
-
-    const value = abiCoder.encode(["bytes"], [report.project]);
-
-
-    const merkleProofval = merkleProof(report, key);
-
-    return [reportRoot, salt, value, merkleProofval];
-}
-
-function F_getAttestionID(report, Triager, key) {
-    const reportRoot = generateReportRoot(report);
-    return keccak256(abiCoder.encode(["bytes32", "address", "string"], [reportRoot, Triager, key]));
-}
-
-
-function F_withdraw(report, key) {
-    const reportRoot = generateReportRoot(report);
-    const reportAddress = report.paymentWalletAddress;
-    const salt = report.salts;
-
-    const merkleProofval = merkleProof(report, key);
-
-    return [reportRoot, reportAddress, salt, merkleProofval];
-}
 
 // [!] TESTING SETUP
 
@@ -226,6 +93,7 @@ describe("Notary Test Workflows",async function () {
 
         // Constant Reports
         salt = generateRandomSalt();
+
         report1 = { "id": 1, "salts": salt, "paymentWalletAddress": Reporter1.address, "project": "0xbf971d4360414c84ea06783d0ea51e69035ee526" }
         report2 = { "id": 2, "salts": salt, "paymentWalletAddress": Reporter2.address, "project": "0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98" }
 
