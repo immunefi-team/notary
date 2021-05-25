@@ -30,7 +30,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
   }
 
   // NOTARY FUNCTIONS
-  function submit(bytes32 reportRoot) external onlyRole(OPERATOR_ROLE) {
+  function submit(bytes32 reportRoot) override external onlyRole(OPERATOR_ROLE) {
     TimestampPadded storage timestamp_padded = reports[reportRoot];
     require(timestamp_padded.timestamp == 0, "Bug Report Notary: Report already submitted");
     uint64 timestamp = block.timestamp.toUint64();
@@ -50,7 +50,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
     return keccak256(abi.encode(reportRoot, key));
   }
 
-  function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) external onlyRole(OPERATOR_ROLE) {
+  function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) override external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0, "Bug Report Notary: Invalid commitment");
     require(reports[reportRoot].timestamp != 0, "Bug Report Notary: Report not yet submitted");
     Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
@@ -65,7 +65,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
     require(eventTimestamp + ATTESTATION_DELAY <= disclosures[_getDisclosureID(reportRoot, KEY_REPORT)].timestamp, "Bug Report Notary: Invalid timestamp");
   }
 
-  function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view {
+  function validateAttestation(bytes32 reportRoot, address triager, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) override public view {
     Attestation memory attestation = attestations[_getAttestationID(reportRoot, triager, KEY_REPORT)];
     _validateTimestamp(reportRoot, attestation.timestamp.timestamp);
     bytes32 attestationHash = keccak256(bytes.concat(abi.encode(SEPARATOR_ATTESTATION, triager, KEY_REPORT, salt), value));
@@ -73,7 +73,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
     _checkProof(reportRoot, KEY_REPORT, salt, value, merkleProof);
   }
 
-  function updateReport(bytes32 reportRoot, uint8 newStatusBitField) external onlyRole(OPERATOR_ROLE) {
+  function updateReport(bytes32 reportRoot, uint8 newStatusBitField) override external onlyRole(OPERATOR_ROLE) {
     require(attestations[_getAttestationID(reportRoot, msg.sender, KEY_REPORT)].commitment != 0, "Bug Report Notary: Report is unattested");
     require(newStatusBitField != 0, "Bug Report Notary: Invalid status update");
     uint64 timestamp = block.timestamp.toUint64();
@@ -85,11 +85,11 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
     return flags >> which & 1 == 1;
   }
 
-  function reportHasStatus(bytes32 reportRoot, address triager, uint8 statusType) public view returns (bool) {
+  function reportHasStatus(bytes32 reportRoot, address triager, uint8 statusType) override public view returns (bool) {
     return _getFlag(reportStatuses[_getReportStatusID(reportRoot, triager)].flags, statusType);
   }
 
-  function validateReportStatus(bytes32 reportRoot, address triager, uint8 statusType, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) public view returns (bool) {
+  function validateReportStatus(bytes32 reportRoot, address triager, uint8 statusType, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) override public view returns (bool) {
     validateAttestation(reportRoot, triager, salt, value, merkleProof);
     TimestampPadded memory reportStatus = reportStatuses[_getReportStatusID(reportRoot, triager)];
     _validateTimestamp(reportRoot, reportStatus.timestamp);
@@ -97,7 +97,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
   }
 
   function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof)
-   external onlyRole(OPERATOR_ROLE) {
+   override external onlyRole(OPERATOR_ROLE) {
     _checkProof(reportRoot, key, salt, value, merkleProof);
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
     if (timestamp.timestamp == 0) {
