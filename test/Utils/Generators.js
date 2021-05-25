@@ -20,7 +20,7 @@ const { generateLeafData,
 // [!] SMART CONTRACT FUNCTION GENERATORS to use them in mocha test cases:
 // useful to generate arguments for functions.
 
-async function F_SUBMIT(report) {
+function F_SUBMIT(report) {
     const reportRoot = generateReportRoot(report);
     return reportRoot;
 }
