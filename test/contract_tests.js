@@ -113,7 +113,7 @@ describe("Notary Test Workflows",async function () {
         it("submit(): Only Callable by the operator role only", async function () {
             let resp = await instance.connect(Triager).submit(getReportRoot);
             let block = await ethers.provider.getBlock(resp.blockNumber);
-            expect(resp).to.emit(instance, "ReportSubmitted").withArgs(await getReportRoot, block.timestamp); // AssertionError - How to  get current block timestamp?
+            expect(resp).to.emit(instance, "ReportSubmitted").withArgs(getReportRoot, block.timestamp);
         })
 
         it("submit(): Revert if called by other than OPERATOR ROLE", async function () {
@@ -145,9 +145,9 @@ describe("Notary Test Workflows",async function () {
         });
 
         it("Attest(): Attest the report", async function () {
-            await expect(instance.connect(Triager).attest(getReportRoot, key, commitment))
-            // .to.emit(instance,"ReportAttestation")
-            // .withArgs(Triager.address,getReportRoot,key,ethers.block.timestamp);
+            let resp = await instance.connect(Triager).attest(getReportRoot, key, commitment);
+            let block = await ethers.provider.getBlock(resp.blockNumber);
+            expect(resp).to.emit(instance, "ReportAttestation").withArgs(getReportRoot,key,block.timestamp);
         })
 
         it("Attest(): Revert if Caller is not an Operator", async function () {
