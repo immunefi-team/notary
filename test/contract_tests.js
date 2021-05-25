@@ -31,6 +31,7 @@ const { F_SUBMIT,
 
 const operator_keccak = keccak256("OPERATOR_ROLE");
 const NativeAsset = '0x0000000000000000000000000000000000000000' //  ETH on mainet, XDAI on paonetwork
+const ATTESTATION_DELAY = 24 // 24 hours
 
 const address_ZERO = ethers.constants.AddressZero;
 const random_bytes_RAND = ethers.utils.formatBytes32String("hax");
@@ -475,20 +476,20 @@ describe("Notary Test Workflows",async function () {
             [getReportRoot, salt, value, merkleProofval] = F_disclose(report1, key);
         });
 
-        // Bug Report Notary: Invalid timestamp
-        // TimeStampped validation failed because we cann't attest the report which is in the process of disclosure of `ATTESTATION_DELAY` i.e 24 hours
-        it("validateAttestation(): Validating the attestation on disclosed report before ATTESTATION_DELAY timestamp should revert", async function () {
+        it("validateAttestation(): Validating the attestation on disclosed report `BEFORE` ATTESTATION_DELAY timestamp should revert", async function () {
             await instance.connect(Triager).attest(getReportRoot, kk, commit)
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
             await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval)).to.be.revertedWith("Bug Report Notary: Invalid timestamp");
         })
 
-        it("validateAttestation(): Validating the attestation on disclosed report after ATTESTATION_DELAY", async function () {
+        it("validateAttestation(): Validating the attestation on disclosed report `AFTER` ATTESTATION_DELAY", async function () {
             await instance.connect(Triager).attest(getReportRoot, kk, commit)
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
 
-            // TODO: 24 hours + timestamp and then check (check: ethers.js)
-            //await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval));
+            const increaseTime = ATTESTATION_DELAY * 60 * 60 // ATTESTION in `hour` format x 60 min x 60 sec
+            await ethers.provider.send("evm_increaseTime", [increaseTime]) //  1. increase block time 
+            await ethers.provider.send("evm_mine") // 2. then mine the block
+            await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval));
         })
 
     });
