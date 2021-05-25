@@ -111,9 +111,9 @@ describe("Notary Test Workflows",async function () {
         });
 
         it("submit(): Only Callable by the operator role only", async function () {
-            await expect(instance.connect(Triager).submit(getReportRoot));
-            // .to.emit(instance, "ReportSubmitted").
-            // withArgs(getReportRoot, await ethers.provider.getBlock(await ethers.provider.getBlockNumber()).timestamp); // AssertionError - How to  get current block timestamp?
+            let resp = await instance.connect(Triager).submit(getReportRoot);
+            let block = await ethers.provider.getBlock(resp.blockNumber);
+            expect(resp).to.emit(instance, "ReportSubmitted").withArgs(await getReportRoot, block.timestamp); // AssertionError - How to  get current block timestamp?
         })
 
         it("submit(): Revert if called by other than OPERATOR ROLE", async function () {
