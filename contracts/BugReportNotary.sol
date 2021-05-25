@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import "./interfaces/INotary.sol"
+import "./interfaces/INotary.sol";
 
 contract BugReportNotary is Initializable, AccessControl, INotary {
 
