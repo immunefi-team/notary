@@ -147,7 +147,7 @@ describe("Notary Test Workflows",async function () {
         it("Attest(): Attest the report", async function () {
             let resp = await instance.connect(Triager).attest(getReportRoot, key, commitment);
             let block = await ethers.provider.getBlock(resp.blockNumber);
-            expect(resp).to.emit(instance, "ReportAttestation").withArgs(getReportRoot,key,block.timestamp);
+            expect(resp).to.emit(instance, "ReportAttestation").withArgs(Triager.address,getReportRoot,key,block.timestamp);
         })
 
         it("Attest(): Revert if Caller is not an Operator", async function () {
