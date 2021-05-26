@@ -11,14 +11,14 @@ interface INotary is IAccessControl {
     function ATTESTATION_DELAY() external pure returns (uint64);
 
     struct TimestampPadded {
-	uint8 flags;
-	uint184 _reserved;
-	uint64 timestamp;
+        uint8 flags;
+        uint184 _reserved;
+        uint64 timestamp;
     }
 
     struct Attestation {
-	TimestampPadded timestamp;
-	bytes32 commitment;
+        TimestampPadded timestamp;
+        bytes32 commitment;
     }
 
     // public mappings
