@@ -5,8 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-
-import "./interfaces/INotary.sol"
+import "./interfaces/INotary.sol";
 
 contract Escrow is Initializable {
 
@@ -23,7 +22,7 @@ contract Escrow is Initializable {
   event Withdrawal(bytes32 indexed reportRoot, address indexed to, address paymentToken, uint256 amount);
 
   function initialize(address _notary) external initializer {
-    notary = _notary;
+    notary = INotary(_notary);
   }
 
   function getBalance(bytes32 reportRoot, address paymentToken) public view returns (uint256) {
@@ -36,9 +35,8 @@ contract Escrow is Initializable {
 
   function deposit(bytes32 reportRoot, address paymentToken, uint256 amount) external payable {
     require(amount > 0, "Bug Report Escrow: Amount must be larger than zero");
-    require(notary.reports(reportRoot).timestamp != 0, "Bug Report Escrow: Report not submitted");
-    uint256 storage balance = balances[_getBalanceID(reportRoot, paymentToken)];
-    balance = balance + amount;
+    require(notary.getReport(reportRoot).timestamp != 0, "Bug Report Escrow: Report not submitted");
+    balances[_getBalanceID(reportRoot, paymentToken)] += amount;
     emit Deposit(reportRoot, msg.sender, paymentToken, amount);
     if (paymentToken == NATIVE_ASSET) {
       require(msg.value == amount, "Bug Report Escrow: Insufficient funds sent");
@@ -50,8 +48,7 @@ contract Escrow is Initializable {
 
   // Note: future versions may only allow EOAs to call this fn
   function withdraw(bytes32 reportRoot, address paymentToken, uint256 amount, bytes32 salt, address reporter, bytes32[] calldata merkleProof) external {
-    uint256 storage balance = balances[_getBalanceID(reportRoot, paymentToken)];
-    balance = balance - amount;
+    balances[_getBalanceID(reportRoot, paymentToken)] -= amount;
     emit Withdrawal(reportRoot, reporter, paymentToken, amount);
     notary.disclose(reportRoot, KEY_REPORTER, salt, abi.encode(reporter), merkleProof);
     if (paymentToken == NATIVE_ASSET) {
@@ -60,3 +57,4 @@ contract Escrow is Initializable {
       IERC20(paymentToken).safeTransfer(reporter, amount);
     }
   }
+}

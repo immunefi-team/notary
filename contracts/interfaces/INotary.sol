@@ -7,7 +7,7 @@ interface INotary is IAccessControl {
 
     // public constants
     function OPERATOR_ROLE() external pure returns (bytes32);
-    function KEY_REPORT() external pure returns (string);
+    function KEY_REPORT() external pure returns (string memory);
     function ATTESTATION_DELAY() external pure returns (uint64);
 
     struct TimestampPadded {
@@ -22,10 +22,10 @@ interface INotary is IAccessControl {
     }
 
     // public mappings
-    function reports(bytes32 reportRoot) external view returns (TimestampPadded); // report root => block.timestamp
-    function reportStatuses(bytes32) external view returns (TimestampPadded); // keccak256(report root, triager address) => report's statuses (bit field) as reported by triager
-    function disclosures(bytes32) external view returns (TimestampPadded); // keccak256(report root, key) => block.timestamp
-    function attestations(bytes32) external view returns (Attestation); // keccak256(report root, triager address, key) => Attestation
+    function getReport(bytes32 reportRoot) external view returns (TimestampPadded memory);
+    function getReportStatus(bytes32 reportRoot, address triager) external view returns (TimestampPadded memory);
+    function getDisclosure(bytes32 reportRoot, string memory key) external view returns (TimestampPadded memory);
+    function getAttestation(bytes32 reportRoot, address triager, string memory key) external view returns (Attestation memory);
 
     event ReportSubmitted(bytes32 indexed reportRoot, uint64 timestamp);
     event ReportAttestation(address indexed triager, bytes32 indexed reportRoot, string indexed key, uint64 timestamp);
