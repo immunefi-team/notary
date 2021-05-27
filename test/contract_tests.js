@@ -520,6 +520,20 @@ describe("Notary Test Workflows",async function () {
             await ethers.provider.send("evm_mine") // 2. then mine the block
             await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval));
         })
+
+        it("validateStatus(): should return true if a given attestation is valid and has a given status set to true", async function () {
+            await instance.connect(Triager).attest(getReportRoot, kk, commit)
+            await instance.connect(Triager).updateReport(getReportRoot, 00000001)
+            await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
+
+            const increaseTime = ATTESTATION_DELAY * 60 * 60 
+            await ethers.provider.send("evm_increaseTime", [increaseTime]) 
+            await ethers.provider.send("evm_mine")          
+        
+            let status = await instance.connect(Triager).validateReportStatus(getReportRoot, Triager.address,0, salt, value, merkleProofval);
+            await expect(status).to.be.true;
+        })
+
     });
 
     describe("===> initialize()", function () {
