@@ -248,7 +248,7 @@ describe("Notary Test Workflows",async function () {
             await expect(Einstance.connect(Client).deposit(getReportRoot, NativeAsset, 100, { value: 100 }));
         })
 
-        it("deposit(): No Underflow/Overflow on amount", async function () {
+        it("[TODO] deposit(): No Underflow/Overflow on amount", async function () {
             // TODO
         })
     })
@@ -363,7 +363,7 @@ describe("Notary Test Workflows",async function () {
             await expect(Einstance.connect(Triager).withdraw(reportRoot, NativeAsset, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval))
         })
 
-        it("withdraw(): No underflow/overflow on amount", async function () {
+        it("[TODO] withdraw(): No underflow/overflow on amount", async function () {
             // TODO
         })
     })
@@ -458,40 +458,29 @@ describe("Notary Test Workflows",async function () {
 
         // [BUG] should fail : https://github.com/immunefi-team/notary/issues/16
         it("disclose(): Doing Attest on Disclosed Report should revert",async function(){
-            await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
-                .to.emit(instance, 'ReportDisclosure')
-                .withArgs(getReportRoot, key, value);
-
-            await instance.connect(Triager).attest(getReportRoot, key, commit)
+            await instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval)
+            await expect(instance.connect(Triager).attest(getReportRoot, key, commit)).to.be.reverted;
         })
 
         // [BUG] should fail : https://github.com/immunefi-team/notary/issues/16
         it("disclose(): Doing Update on Disclosed Report should revert", async function () {
             await instance.connect(Triager).attest(getReportRoot, key, commit)
             
-            await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
-                .to.emit(instance, 'ReportDisclosure')
-                .withArgs(getReportRoot, key, value);
-
+            await instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval)
             // false
             //console.log("STATUS : ", await instance.connect(Triager).reportHasStatus(getReportRoot, Triager.address, 0))
-
-            await expect(instance.connect(Triager).updateReport(getReportRoot, 00000001));
-
+            await expect(instance.connect(Triager).updateReport(getReportRoot, 00000001)).to.be.reverted;;
             // true
             //console.log("STATUS : ", await instance.connect(Triager).reportHasStatus(getReportRoot, Triager.address, 0))
         })
 
-        //[BUG] should fail : https://github.com/immunefi-team/notary/issues/16
+        //[BUG] should fail : ASK DUNCAN
         it("disclose(): Disclosing the already disclosed report should revert", async function () {
             await instance.connect(Triager).attest(rr, kk, commit)
 
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
-                .to.emit(instance, 'ReportDisclosure')
-                .withArgs(getReportRoot, key, value);
-
-            await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
-                // .to.be.revertedWith("Bug Report Notary: Key already disclosed for report");
+            await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval)).to.be.reverted;
+                //.to.be.revertedWith("Bug Report Notary: Key already disclosed for report");
         })
     })
 
@@ -531,7 +520,6 @@ describe("Notary Test Workflows",async function () {
             await ethers.provider.send("evm_mine") // 2. then mine the block
             await expect(instance.connect(Triager).validateAttestation(getReportRoot, Triager.address, salt, value, merkleProofval));
         })
-
     });
 
     describe("===> initialize()", function () {
