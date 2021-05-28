@@ -112,8 +112,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
     return _getFlag(reportStatus.flags, statusType);
   }
 
-  function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof)
-   override external onlyRole(OPERATOR_ROLE) {
+  function disclose(bytes32 reportRoot, string calldata key, bytes32 salt, bytes calldata value, bytes32[] calldata merkleProof) override external {
     _checkProof(reportRoot, key, salt, value, merkleProof);
     TimestampPadded storage timestamp = disclosures[_getDisclosureID(reportRoot, key)];
     if (timestamp.timestamp == 0) {
