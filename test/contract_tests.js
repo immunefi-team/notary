@@ -253,7 +253,8 @@ describe("Notary Test Workflows",async function () {
         })
     })
 
-    describe("===> Testing withdraw() without Escrow access-control", function () {
+
+    describe("===> withdraw()", function () {
         let reportRoot,
             reportAddress,
             salt,
@@ -262,28 +263,6 @@ describe("Notary Test Workflows",async function () {
         beforeEach(async () => {
             [reportRoot, reportAddress, salt, merkleProofval] = F_withdraw(report1, ReportKeys.reporter);
             await instance.connect(Triager).submit(reportRoot);
-            await Einstance.connect(Client).deposit(reportRoot, NativeAsset, ONE_ETHER_FORMAT, { value: ONE_ETHER_FORMAT })
-        });
-
-        it("withdraw(): calling without `OPERATOR_ROLE` on notary should revert because `disclose` have access control-check for caller", async function () {
-            await expect(Einstance.connect(Reporter2).withdraw(reportRoot, NativeAsset, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval)).to.be.reverted;
-        })
-    });
-
-
-    describe("===> Testing withdraw() With Escrow access-control", function () {
-        let reportRoot,
-            reportAddress,
-            salt,
-            merkleProofval
-
-        beforeEach(async () => {
-            [reportRoot, reportAddress, salt, merkleProofval] = F_withdraw(report1, ReportKeys.reporter);
-            await instance.connect(Triager).submit(reportRoot);
-
-            // required for withdraw() function since it call notary `disclose()` function.
-            // Einstance should have an operator role on `notary` contract to perform the disclose action.
-            await instance.connect(Deployer).grantRole(operator_keccak, Einstance.address); 
         });
 
         it("withdraw(): Workflow: Client pays the report,Other user withdraws the report,Compare the final balances on both smart contract `balances` map and main address", async function () { // but the amount will get `withdrawed` to the address which was provided along with the report.
@@ -441,14 +420,7 @@ describe("Notary Test Workflows",async function () {
             [getReportRoot, salt, value, merkleProofval] = F_disclose(report1,key);
         });
 
-        it("disclose(): Only operator can disclose the report", async function () {
-            await instance.connect(Triager).attest(rr, kk, commit)
-
-            await expect(instance.connect(Client).disclose(getReportRoot, key, salt, value, merkleProofval))
-                .to.be.reverted;
-        })
-
-        it("disclose(): Disclosing the report",async function(){
+        it("disclose(): Anyone can disclose the report",async function(){
             await instance.connect(Triager).attest(rr, kk, commit)
 
             await expect(instance.connect(Triager).disclose(getReportRoot, key, salt, value, merkleProofval))
@@ -543,7 +515,7 @@ describe("Notary Test Workflows",async function () {
                 .to.be.reverted;
         })
 
-        it("intialize() : Triager(OPERATOR) shouldn't able to call intialize", async function () {
+        it("intialize() : (OPERATOR) shouldn't able to call intialize", async function () {
             // Since contract is already deployed, User wouldn't  able to re-intialize
             await expect(instance.connect(Triager).initialize(Client.address))
                 .to.be.reverted;
