@@ -59,6 +59,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
 
   // NOTARY FUNCTIONS
   function submit(bytes32 reportRoot) override external onlyRole(OPERATOR_ROLE) {
+    require(reportRoot != 0, "Bug Report Notary: cannot submit 0 report root");
     TimestampPadded storage timestamp_padded = reports[reportRoot];
     require(timestamp_padded.timestamp == 0, "Bug Report Notary: Report already submitted");
     uint64 timestamp = block.timestamp.toUint64();
