@@ -213,36 +213,36 @@
           {
             "contract": "BugReportNotary",
             "label": "reports",
-            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)3177_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)1764_storage)",
             "src": "contracts/BugReportNotary.sol:20"
           },
           {
             "contract": "BugReportNotary",
             "label": "reportStatuses",
-            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)3177_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)1764_storage)",
             "src": "contracts/BugReportNotary.sol:21"
           },
           {
             "contract": "BugReportNotary",
             "label": "disclosures",
-            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)3177_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(TimestampPadded)1764_storage)",
             "src": "contracts/BugReportNotary.sol:22"
           },
           {
             "contract": "BugReportNotary",
             "label": "attestations",
-            "type": "t_mapping(t_bytes32,t_struct(Attestation)3183_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(Attestation)1770_storage)",
             "src": "contracts/BugReportNotary.sol:23"
           }
         ],
         "types": {
-          "t_mapping(t_bytes32,t_struct(TimestampPadded)3177_storage)": {
+          "t_mapping(t_bytes32,t_struct(TimestampPadded)1764_storage)": {
             "label": "mapping(bytes32 => struct INotary.TimestampPadded)"
           },
           "t_bytes32": {
             "label": "bytes32"
           },
-          "t_struct(TimestampPadded)3177_storage": {
+          "t_struct(TimestampPadded)1764_storage": {
             "label": "struct INotary.TimestampPadded",
             "members": [
               {
@@ -268,15 +268,15 @@
           "t_uint64": {
             "label": "uint64"
           },
-          "t_mapping(t_bytes32,t_struct(Attestation)3183_storage)": {
+          "t_mapping(t_bytes32,t_struct(Attestation)1770_storage)": {
             "label": "mapping(bytes32 => struct INotary.Attestation)"
           },
-          "t_struct(Attestation)3183_storage": {
+          "t_struct(Attestation)1770_storage": {
             "label": "struct INotary.Attestation",
             "members": [
               {
                 "label": "timestamp",
-                "type": "t_struct(TimestampPadded)3177_storage"
+                "type": "t_struct(TimestampPadded)1764_storage"
               },
               {
                 "label": "commitment",

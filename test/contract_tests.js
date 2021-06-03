@@ -338,13 +338,13 @@ describe("Notary Test Cases",async function () {
             Rkey = ReportKeys.report;
         })
 
-        it("updateReport(): Update the report with newStatusBitField",async function(){
-           Notary.connect(Triager).attest(reportRoot, key, commitment)
+        it("Update the report with newStatusBitField",async function(){
+            Notary.connect(Triager).attest(reportRoot, key, commitment)
             await expect(Notary.connect(Triager).updateReport(reportRoot, newStatusBitField));
         })
 
-        it("updateReport(): Update the report with newStatusBitField and check ReportStatus",async function(){
-           Notary.connect(Triager).attest(reportRoot, key, commitment)
+        it("Update the report with newStatusBitField and check ReportStatus",async function(){
+            Notary.connect(Triager).attest(reportRoot, key, commitment)
 
             await expect(await Notary.connect(Triager).reportHasStatus(reportRoot, Triager.address, 0)).to.be.false;
             await expect(await Notary.connect(Triager).updateReport(reportRoot,newStatusBitField));
@@ -352,17 +352,17 @@ describe("Notary Test Cases",async function () {
         
         })
 
-        it("updateReport(): Only Operator can update the report with new statusfield",async function(){
-           Notary.connect(Triager).attest(reportRoot, key, commitment)
+        it("Revert, If update the report by non `OPERATOR` role",async function(){
+            Notary.connect(Triager).attest(reportRoot, key, commitment)
             await expect(Notary.connect(Client).updateReport(reportRoot, newStatusBitField)).to.be.reverted;
         })
 
-        it("updateReport(): Revert if updating the report with invalid StatusBitField", async function () {
-           Notary.connect(Triager).attest(reportRoot, key, commitment)
+        it("Revert, if updating the report with invalid StatusBitField", async function () {
+            Notary.connect(Triager).attest(reportRoot, key, commitment)
             await expect(Notary.connect(Triager).updateReport(reportRoot, 0000000)).to.be.revertedWith("Bug Report Notary: Invalid status update");
         })
 
-        it("updateReport(): Updating the non-attested report should revert", async function () {
+        it("Revert, If updating the non attested report", async function () {
             await expect(Notary.connect(Triager).updateReport(makeSubmitArgs(report1), newStatusBitField)).to.be.revertedWith("Bug Report Notary: Report is unattested");
         })
 
