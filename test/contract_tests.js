@@ -109,7 +109,7 @@ describe("Notary Test Cases",async function () {
             await expect(Notary.connect(Reporter1).submit(reportRoot)).to.be.reverted;
         })
 
-        it("Only Accepts a root of merkle tree format constructed from the report", async function () {
+        it("[BUG] Revert, If the reportRoot argument is not the merkel root format", async function () {
             await expect(Notary.connect(Triager).submit(Bytes32_String)); 
             await expect(Notary.connect(Triager).submit(Bytes32_Zero)).to.be.reverted;
         })
@@ -118,7 +118,6 @@ describe("Notary Test Cases",async function () {
             await expect(Notary.connect(Triager).submit(reportRoot))
             await expect(Notary.connect(Triager).submit(reportRoot)).revertedWith("Bug Report Notary: Report already submitted"); // since report already exists in `reports` mapping.
         })
-
     });
 
     describe("===> Attest()", function () {
