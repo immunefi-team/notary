@@ -18,8 +18,6 @@
     "g": "^2.0.1",
     "ganache-cli": "^6.12.2",
     "keccak256": "^1.0.2",
-    "merkletreejs": "^0.2.18",
-    "path": "^0.12.7",
-    "randombytes": "^2.1.0"
+    "merkletreejs": "^0.2.18"
   }
 }

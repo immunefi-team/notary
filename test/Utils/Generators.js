@@ -20,12 +20,12 @@ const { generateLeafData,
 // [!] SMART CONTRACT FUNCTION GENERATORS to use them in mocha test cases:
 // useful to generate arguments for functions.
 
-function F_SUBMIT(report) {
+function makeSubmitArgs(report) {
     const reportRoot = generateReportRoot(report);
     return reportRoot;
 }
 
-function F_attest(report, triagerAddr) {
+function makeAttestArgs(report, triagerAddr) {
     const reportRoot = generateReportRoot(report);
     const key = ReportKeys.report;
     const commitment = generateCommitment(report, triagerAddr);
@@ -33,7 +33,7 @@ function F_attest(report, triagerAddr) {
     return [reportRoot, key, commitment];
 }
 
-function F_disclose(report, key) {
+function makeDiscloseArgs(report, key) {
     const reportRoot = generateReportRoot(report);
     const salt = report.salts;
 
@@ -45,13 +45,7 @@ function F_disclose(report, key) {
     return [reportRoot, salt, value, merkleProofval];
 }
 
-function F_getAttestionID(report, Triager, key) {
-    const reportRoot = generateReportRoot(report);
-    return keccak256(abiCoder.encode(["bytes32", "address", "string"], [reportRoot, Triager, key]));
-}
-
-
-function F_withdraw(report, key) {
+function makeWithdrawArgs(report, key) {
     const reportRoot = generateReportRoot(report);
     const reportAddress = report.paymentWalletAddress;
     const salt = report.salts;
@@ -62,9 +56,8 @@ function F_withdraw(report, key) {
 }
 
 module.exports = {
-    F_SUBMIT,
-    F_attest,
-    F_disclose,
-    F_getAttestionID,
-    F_withdraw
+    makeSubmitArgs,
+    makeAttestArgs,
+    makeDiscloseArgs,
+    makeWithdrawArgs
 };

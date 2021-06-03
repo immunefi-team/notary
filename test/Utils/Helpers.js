@@ -1,6 +1,6 @@
 "use strict";
 
-const { upgrades, ethers } = require("hardhat");
+const { ethers } = require("hardhat");
 
 function generateRandomSalt() {
     const buf = ethers.utils.randomBytes(32);

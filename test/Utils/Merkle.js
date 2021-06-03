@@ -1,6 +1,6 @@
 "use strict";
 
-const { upgrades, ethers } = require("hardhat");
+const { ethers } = require("hardhat");
 const { MerkleTree } = require('merkletreejs');
 const abiCoder = ethers.utils.defaultAbiCoder; //An AbiCoder created when the library is imported which is used by the Interface.
 const keccak256 = require('keccak256');
