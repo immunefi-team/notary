@@ -2,12 +2,6 @@
 
 const { ethers } = require("hardhat");
 
-function generateRandomSalt() {
-    const buf = ethers.utils.randomBytes(32);
-    const salt = ethers.utils.hexlify(buf);
-    return salt;
-}
-
 const ReportKeys = {
     report: "report",
     reporter: "reporter",
@@ -15,7 +9,19 @@ const ReportKeys = {
     project: "project",
 }
 
+function generateRandomSalt() {
+    const buf = ethers.utils.randomBytes(32);
+    const salt = ethers.utils.hexlify(buf);
+    return salt;
+}
+
+function generateSaltForKeys(){
+    var rKeys = Object.values(ReportKeys);
+    return rKeys.map((key) => ({ key, salt: generateRandomSalt(),}))
+}
+
 module.exports = {
     ReportKeys,
-    generateRandomSalt
+    generateRandomSalt,
+    generateSaltForKeys
 }

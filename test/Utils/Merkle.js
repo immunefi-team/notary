@@ -22,7 +22,7 @@ function generateReportRoot(report) {
 
 function generateReporterLeaf(report) {
     const key = ReportKeys.reporter;
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
     const value = abiCoder.encode(["address"], [report.paymentWalletAddress]);
 
     return generateLeaf(key, salt, value);
@@ -30,7 +30,7 @@ function generateReporterLeaf(report) {
 
 function generateReportNumberLeaf(report) {
     const key = ReportKeys.reportNumber;
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
     const value = abiCoder.encode(["uint256"], [report.id]);
 
     return generateLeaf(key, salt, value);
@@ -38,7 +38,7 @@ function generateReportNumberLeaf(report) {
 
 function generateProjectLeaf(report) {
     const key = ReportKeys.project;
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
     const value = abiCoder.encode(["bytes"], [report.project]);
 
     return generateLeaf(key, salt, value);
@@ -46,7 +46,7 @@ function generateProjectLeaf(report) {
 
 function generateReportLeaf(report) {
     const key = ReportKeys.report;
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
     const value = abiCoder.encode(["bytes"], [report.project]);
 
     return generateLeaf(key, salt, value);
@@ -88,7 +88,7 @@ function merkleProof(report, key) {
 
 function generateCommitment(report, triagerAddr) {
     const key = ReportKeys.report;
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
 
     const value = abiCoder.encode(["bytes"], [report.project]);
 

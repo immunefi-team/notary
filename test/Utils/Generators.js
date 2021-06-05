@@ -35,7 +35,7 @@ function makeAttestArgs(report, triagerAddr) {
 
 function makeDiscloseArgs(report, key) {
     const reportRoot = generateReportRoot(report);
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
 
     const value = abiCoder.encode(["bytes"], [report.project]);
 
@@ -48,7 +48,7 @@ function makeDiscloseArgs(report, key) {
 function makeWithdrawArgs(report, key) {
     const reportRoot = generateReportRoot(report);
     const reportAddress = report.paymentWalletAddress;
-    const salt = report.salts;
+    const salt = report.salts.find((salt) => salt.key === key)?.salt;
 
     const merkleProofval = merkleProof(report, key);
 
