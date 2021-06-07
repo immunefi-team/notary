@@ -70,6 +70,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
   function attest(bytes32 reportRoot, string calldata key, bytes32 commitment) override external onlyRole(OPERATOR_ROLE) {
     require(commitment != 0x0, "Bug Report Notary: Invalid commitment");
     require(reports[reportRoot].timestamp != 0, "Bug Report Notary: Report not yet submitted");
+    require(getDisclosure(reportRoot, key).timestamp == 0, "Bug Report Notary: Report key already disclosed");
     Attestation storage attestation = attestations[_getAttestationID(reportRoot, msg.sender, key)];
     require(attestation.timestamp.timestamp == 0 && attestation.commitment == 0x0, "Bug Report Notary: Attestation already submitted");
     uint64 timestamp = block.timestamp.toUint64();
