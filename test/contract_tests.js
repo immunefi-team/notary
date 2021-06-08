@@ -397,8 +397,7 @@ describe("Notary Test Cases",async function () {
             await expect(Notary.connect(Triager).attest(reportRoot, key, commit)).to.be.reverted;
         })
 
-        // [BUG] should fail : https://github.com/immunefi-team/notary/issues/16
-        it("[BUG] Doing Update on Disclosed Report should revert", async function () {
+        it("Doing Update on Disclosed Report should revert", async function () {
             await Notary.connect(Triager).attest(reportRoot, key, commit)
             
             await Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval)

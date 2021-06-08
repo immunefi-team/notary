@@ -94,6 +94,7 @@ contract BugReportNotary is Initializable, AccessControl, INotary {
   function updateReport(bytes32 reportRoot, uint8 newStatusBitField) override external onlyRole(OPERATOR_ROLE) {
     require(getAttestation(reportRoot, msg.sender, KEY_REPORT).commitment != 0, "Bug Report Notary: Report is unattested");
     require(newStatusBitField != 0, "Bug Report Notary: Invalid status update");
+    require(getDisclosure(reportRoot, KEY_REPORT).timestamp == 0, "Bug Report Notary: Report key already disclosed");
     uint64 timestamp = block.timestamp.toUint64();
     reportStatuses[_getReportStatusID(reportRoot, msg.sender)] = TimestampPadded(newStatusBitField, 0, timestamp);
     emit ReportUpdated(msg.sender, reportRoot, newStatusBitField, timestamp);
