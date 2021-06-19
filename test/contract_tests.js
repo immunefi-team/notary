@@ -77,8 +77,8 @@ describe("Notary Test Cases",async function () {
 
         await TestERC20.approve(Escrow.address, ethers.utils.parseUnits("100000", "ether")); // ether format for 100000 tokens
 
-        report1 = { "id": 1, "salts": generateSaltForKeys(), "paymentWalletAddress": Reporter1.address, "project": "0xbf971d4360414c84ea06783d0ea51e69035ee526" }
-        report2 = { "id": 2, "salts": generateSaltForKeys(), "paymentWalletAddress": Reporter2.address, "project": "0xfbb1b73c4f0bda4f67dca266ce6ef42f520fbb98" }
+        report1 = { "id": 1, "salts": generateSaltForKeys(), "paymentWalletAddress": Reporter1.address, "project": "immunefiBBP", "serializeReport": { "title": "Bug #1", "description": "Some Vulnerability at XYZ", "reportNumber": 1, "reportType": "web" }}
+        report2 = { "id": 2, "salts": generateSaltForKeys(), "paymentWalletAddress": Reporter2.address, "project": "immunefiBBP", "serializeReport": { "title": "Bug #2", "description": "Some Vulnerability at AAA", "reportNumber": 2, "reportType": "smart_contract" }}
 
         // `Deployer` is the only operator on deployProxy,To keep Deployer independent for proxy upgrades tasks \ 
         // Assigning `OPERATOR` role to `Triager` who will be responsible for all `OPERATOR` operations on `Notary`contract functions.

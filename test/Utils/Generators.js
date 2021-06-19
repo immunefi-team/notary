@@ -15,7 +15,8 @@ const { generateLeafData,
     getLeafGenerator,
     generateReportMerkleTree,
     merkleProof,
-    generateCommitment } = require("./Merkle");
+    generateCommitment,
+    ValueGeneratorFromKey } = require("./Merkle");
 
 // [!] SMART CONTRACT FUNCTION GENERATORS to use them in mocha test cases:
 // useful to generate arguments for functions.
@@ -36,9 +37,7 @@ function makeAttestArgs(report, triagerAddr) {
 function makeDiscloseArgs(report, key) {
     const reportRoot = generateReportRoot(report);
     const salt = report.salts.find((salt) => salt.key === key)?.salt;
-
-    const value = abiCoder.encode(["bytes"], [report.project]);
-
+    const value = ValueGeneratorFromKey(key,report);
 
     const merkleProofval = merkleProof(report, key);
 
