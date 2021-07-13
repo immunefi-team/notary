@@ -108,12 +108,12 @@ describe("Notary Test Cases",async function () {
         })
 
         it("Revert, If the reportRoot argument is bytes32 zeros", async function () {
-            await expect(Notary.connect(Triager).submit(BYTES32_STRING)); 
+            await Notary.connect(Triager).submit(BYTES32_STRING); 
             await expect(Notary.connect(Triager).submit(BYTES32_ZERO)).to.be.reverted;
         })
 
         it("Revert, If the same report root submitted more than once",async function(){
-            await expect(Notary.connect(Triager).submit(reportRoot))
+            await Notary.connect(Triager).submit(reportRoot);
             await expect(Notary.connect(Triager).submit(reportRoot)).revertedWith("Bug Report Notary: Report already submitted"); // since report already exists in `reports` mapping.
         })
     });
@@ -140,7 +140,7 @@ describe("Notary Test Cases",async function () {
         })
 
         it("Revert, if attest more than once on the same report",async function(){
-            await expect(Notary.connect(Triager).attest(reportRoot, key, commitment))
+            await Notary.connect(Triager).attest(reportRoot, key, commitment);
             await expect(Notary.connect(Triager).attest(reportRoot, key, commitment)).to.be.reverted;
         })
 
@@ -170,7 +170,7 @@ describe("Notary Test Cases",async function () {
         })
 
         it("Anyone can call the function with or without `OPERATOR` role", async function () {
-            await expect(Escrow.connect(Reporter2).getBalance(reportRoot, NATIVE_ASSET))
+            await Escrow.connect(Reporter2).getBalance(reportRoot, NATIVE_ASSET);
         })
         
     })
@@ -184,11 +184,11 @@ describe("Notary Test Cases",async function () {
         });
 
         it("Anyone can Pay the report, Paying in NATIVE ASSET",async function(){
-            await expect(Escrow.connect(Client).deposit(reportRoot, NATIVE_ASSET, ONE_ETHER_FORMAT, { value: ONE_ETHER_FORMAT }))
+            await Escrow.connect(Client).deposit(reportRoot, NATIVE_ASSET, ONE_ETHER_FORMAT, { value: ONE_ETHER_FORMAT });
         })
 
         it("Paying the report with ERC20 tokens",async function(){
-            await expect(Escrow.connect(ERC20Payer).deposit(reportRoot, TestERC20.address, ONE_ETHER_FORMAT)) //  sending 1 TOKEN only
+            await Escrow.connect(ERC20Payer).deposit(reportRoot, TestERC20.address, ONE_ETHER_FORMAT); //  sending 1 TOKEN only
             await expect(ethers.utils.formatEther(await Escrow.connect(Triager).getBalance(reportRoot, TestERC20.address))).to.be.equal('1.0');
         })
 
@@ -250,7 +250,7 @@ describe("Notary Test Cases",async function () {
             //2
             await expect(ethers.utils.formatEther(await Escrow.connect(Reporter1).getBalance(reportRoot, NATIVE_ASSET))).to.be.equal("1.0"); // 1 ETHER
             //3
-            await expect(Escrow.connect(Reporter2).withdraw(reportRoot, NATIVE_ASSET, HALF_ETHER_FORMAT , salt, reportAddress, merkleProofval)) // report should have now 0.5 ETHER
+            await Escrow.connect(Reporter2).withdraw(reportRoot, NATIVE_ASSET, HALF_ETHER_FORMAT , salt, reportAddress, merkleProofval); // report should have now 0.5 ETHER
             //4
             await expect(ethers.utils.formatEther(await Escrow.connect(Reporter1).getBalance(reportRoot, NATIVE_ASSET))).to.be.equal("0.5"); // balance on smart contract `balances` mapping
 
@@ -262,10 +262,10 @@ describe("Notary Test Cases",async function () {
 
         
         it("Withdraw the Custom ERC20 Balance from the report and check final balance of the report",async function(){
-            await expect(Escrow.connect(ERC20Payer).deposit(reportRoot, TestERC20.address, ONE_ETHER_FORMAT))
+            await Escrow.connect(ERC20Payer).deposit(reportRoot, TestERC20.address, ONE_ETHER_FORMAT);
             Before_Balance = await Escrow.connect(Triager).getBalance(reportRoot, TestERC20.address);
             
-            await expect(Escrow.connect(Reporter2).withdraw(reportRoot, TestERC20.address, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval))
+            await Escrow.connect(Reporter2).withdraw(reportRoot, TestERC20.address, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval);
             After_Balance = await Escrow.connect(Triager).getBalance(reportRoot, TestERC20.address);
             await expect(ethers.utils.formatEther(After_Balance)).to.be.equal("0.5");
         })
@@ -273,8 +273,8 @@ describe("Notary Test Cases",async function () {
         it("Multiple withdrawals on the report should work, Check the final balance of report", async function () {
             await Escrow.connect(Client).deposit(reportRoot, NATIVE_ASSET, ONE_ETHER_FORMAT, { value: ONE_ETHER_FORMAT })
 
-            await expect(Escrow.connect(Triager).withdraw(reportRoot, NATIVE_ASSET, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval))
-            await expect(Escrow.connect(Triager).withdraw(reportRoot, NATIVE_ASSET, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval))
+            await Escrow.connect(Triager).withdraw(reportRoot, NATIVE_ASSET, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval);
+            await Escrow.connect(Triager).withdraw(reportRoot, NATIVE_ASSET, HALF_ETHER_FORMAT, salt, reportAddress, merkleProofval);
             
             After_Balance = await Escrow.connect(Triager).getBalance(reportRoot, NATIVE_ASSET);
             await expect(ethers.utils.formatEther(After_Balance)).to.be.equal("0.0");
@@ -286,7 +286,7 @@ describe("Notary Test Cases",async function () {
 
         it("Withdraw should work with amount '0'", async function () { // Since there's no check for amount 0, Transaction gonna utilize the gas only then
             await Escrow.connect(Client).deposit(reportRoot, NATIVE_ASSET, 100, { value: 100 })
-            await expect(Escrow.connect(Triager).withdraw(reportRoot, NATIVE_ASSET, 0, salt, reportAddress, merkleProofval));
+            await Escrow.connect(Triager).withdraw(reportRoot, NATIVE_ASSET, 0, salt, reportAddress, merkleProofval);
         })
 
         it("Revert, if withdrawing the report with invalid asset address",async function(){
@@ -336,14 +336,14 @@ describe("Notary Test Cases",async function () {
 
         it("Update the report with newStatusBitField",async function(){
             await Notary.connect(Triager).attest(reportRoot, key, commitment)
-            await expect(Notary.connect(Triager).updateReport(reportRoot, newStatusBitField));
+            await Notary.connect(Triager).updateReport(reportRoot, newStatusBitField);
         })
 
         it("Update the report with newStatusBitField and check ReportStatus",async function(){
             await Notary.connect(Triager).attest(reportRoot, key, commitment)
 
             await expect(await Notary.connect(Triager).reportHasStatus(reportRoot, Triager.address, 0)).to.be.false;
-            await expect(await Notary.connect(Triager).updateReport(reportRoot,newStatusBitField));
+            await Notary.connect(Triager).updateReport(reportRoot,newStatusBitField);
             await expect(await Notary.connect(Triager).reportHasStatus(reportRoot, Triager.address, 0)).to.be.true;
         
         })
@@ -401,7 +401,7 @@ describe("Notary Test Cases",async function () {
             await Notary.connect(Triager).attest(reportRoot, key, commit)
             
             await Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval)
-            await expect(Notary.connect(Triager).updateReport(reportRoot, 00000001)).to.be.reverted;;
+            await expect(Notary.connect(Triager).updateReport(reportRoot, 00000001)).to.be.revertedWith('Bug Report Notary: Report key already disclosed');
         })
     })
 
@@ -426,34 +426,34 @@ describe("Notary Test Cases",async function () {
         });
 
         it("Revert, if validating the attestation on disclosed report `BEFORE` ATTESTATION_DELAY timestamp", async function () {
-            await Notary.connect(Triager).attest(reportRoot, kk, commit)
-            await expect(Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval))
+            await Notary.connect(Triager).attest(reportRoot, kk, commit);
+            await Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval);
             await expect(Notary.connect(Triager).validateAttestation(reportRoot, Triager.address, salt, value, merkleProofval)).to.be.revertedWith("Bug Report Notary: Invalid timestamp");
-        })
+        });
 
         it("Validating the attestation on disclosed report `AFTER` ATTESTATION_DELAY", async function () {
-            await Notary.connect(Triager).attest(reportRoot, kk, commit)
-            await expect(Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval))
+            await Notary.connect(Triager).attest(reportRoot, kk, commit);
 
             const increaseTime = ATTESTATION_DELAY * 60 * 60 // ATTESTION in `hour` format x 60 min x 60 sec
             await ethers.provider.send("evm_increaseTime", [increaseTime]) //  1. increase block time 
             await ethers.provider.send("evm_mine") // 2. then mine the block
-            await expect(Notary.connect(Triager).validateAttestation(reportRoot, Triager.address, salt, value, merkleProofval));
+
+            await Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval);
+            await Notary.connect(Triager).validateAttestation(reportRoot, Triager.address, salt, value, merkleProofval);
         })
 
         it("should return true, if a given attestation is valid and has a given status set to true", async function () {
-            await Notary.connect(Triager).attest(reportRoot, kk, commit)
-            await Notary.connect(Triager).updateReport(reportRoot, 00000001)
-            await expect(Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval))
+            await Notary.connect(Triager).attest(reportRoot, kk, commit);
+            await Notary.connect(Triager).updateReport(reportRoot, 00000001);
 
             const increaseTime = ATTESTATION_DELAY * 60 * 60 
             await ethers.provider.send("evm_increaseTime", [increaseTime]) 
             await ethers.provider.send("evm_mine")          
-        
+
+            await Notary.connect(Triager).disclose(reportRoot, key, salt, value, merkleProofval);
             let status = await Notary.connect(Triager).validateReportStatus(reportRoot, Triager.address,0, salt, value, merkleProofval);
             await expect(status).to.be.true;
         })
-
     });
 
     describe("===> initialize()", function () {
@@ -469,7 +469,6 @@ describe("Notary Test Cases",async function () {
                 .to.be.reverted;
         })
     });
-
 
 
     describe("===> upgradeProxy()", function () {
