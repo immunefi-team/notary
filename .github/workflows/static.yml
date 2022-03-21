@@ -12,9 +12,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Slither Static Analysis
-        uses: arbazkiraak/slither-static-analysis-action@v12
+        uses: luisfontes19/slither-static-analysis-action@v0.3.2
         with:
-          slither-version: '0.8.0'
+          slither-version: '0.8.2'
+          slither-params: '--solc-remaps @openzeppelin=node_modules/@openzeppelin'
           run-npm-install: true
           high-threshold: 1
           medium-threshold: 1
